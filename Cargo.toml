@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 slip-codec = "0.2.4"
 serialport = "4.0.0"
+num-derive = "0.3"
+num-traits = "0.2"

@@ -1,11 +1,16 @@
-use std::{path::Path, time::Duration};
+use std::{time::Duration};
 use serialport::available_ports;
 use std::error::Error;
+
+mod messages;
+
+use messages::{NrfDfuOpCode::ProtocolVersion, NrfDfuResponse};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 const USB_VID: u16 = 0x1915;
 const USB_PID: u16 = 0x521f;
+
 
 fn main() {
     match run() {
@@ -38,11 +43,12 @@ fn run() -> Result<()> {
     let mut slip_enc = slip_codec::Encoder::new();
     let mut slip_dec = slip_codec::Decoder::new();
 
-    slip_enc.encode(&[0x00], &mut port)?;
+    slip_enc.encode(&[ProtocolVersion as u8], &mut port)?;
 
-    let mut response = vec![];
-    slip_dec.decode(&mut port, &mut response).map_err(|e| format!("{:?}", e))?;
+    let mut response_bytes = vec![];
+    slip_dec.decode(&mut port, &mut response_bytes).map_err(|e| format!("{:?}", e))?;
 
+    let response = NrfDfuResponse::from_bytes(&response_bytes);
     println!("{:?}", response);
 
     Ok(())

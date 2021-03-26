@@ -43,13 +43,13 @@ fn run() -> Result<()> {
     };
 
     let mut conn = BootloaderConnection::new(port)?;
+
     let version = conn.fetch_protocol_version()?;
     println!("protocol version: {}", version);
-    if false {
-        // TODO: this doesn't work
-        let hw_version = conn.fetch_hardware_version()?;
-        println!("hardware version: {:?}", hw_version);
-    }
+
+    // TODO: ⚡️ this yields the protocol version response again
+    let hw_version = conn.fetch_hardware_version()?;
+    println!("hardware version: {:?}", hw_version);
 
     Ok(())
 }

@@ -7,15 +7,15 @@ use std::{
 use byteorder::{ReadBytesExt, LE};
 use num_derive::FromPrimitive;
 
-pub const NRF_DFU_PREAMBLE: u8 = 0x60;
-
 // opcodes
 // note: incomplete; only contains opcodes that we currently use
 #[derive(FromPrimitive, Debug)]
 pub enum NrfDfuOpCode {
     ProtocolVersion = 0x0,
     HardwareVersionGet = 0x0A,
+    Response = 0x60,    // marks the start of a response message
 }
+
 #[derive(FromPrimitive, Debug)]
 pub enum NrfDfuResultCode {
     Invalid = 0x00,               // Invalid opcode.

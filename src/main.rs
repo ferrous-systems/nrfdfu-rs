@@ -6,8 +6,9 @@ use std::time::Duration;
 mod messages;
 
 use messages::{
-    DfuError, ExtError, HardwareVersionRequest, HardwareVersionResponse, NrfDfuResultCode,
-    ProtocolVersionRequest, Request, Response, NRF_DFU_PREAMBLE,
+    DfuError, ExtError, NrfDfuOpCode, HardwareVersionRequest, HardwareVersionResponse,
+    NrfDfuResultCode,
+    ProtocolVersionRequest, Request, Response,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -95,9 +96,9 @@ impl BootloaderConnection {
             .into());
         }
 
-        if response_bytes[0] != NRF_DFU_PREAMBLE {
+        if response_bytes[0] != NrfDfuOpCode::Response as u8 {
             return Err(format!(
-                "malformed response (expected nrf DFU preamble 0x60, got 0x{:02x})",
+                "malformed response (expected nrf DFU response preamble 0x60, got 0x{:02x})",
                 response_bytes[0]
             )
             .into());

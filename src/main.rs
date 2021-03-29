@@ -162,12 +162,14 @@ impl BootloaderConnection {
     }
 
     fn fetch_protocol_version(&mut self) -> Result<u8> {
-        let version_response = self.request(ProtocolVersionRequest)?;
-        Ok(version_response.version)
+        let response = self.request(ProtocolVersionRequest);
+        match response{
+            Ok(version_response) => Ok(version_response.version),
+            Err(e) => Err(e)
+        }
     }
 
     fn fetch_hardware_version(&mut self) -> Result<HardwareVersionResponse> {
-        let hw_version_response = self.request(HardwareVersionRequest)?;
-        Ok(hw_version_response)
+        self.request(HardwareVersionRequest)
     }
 }

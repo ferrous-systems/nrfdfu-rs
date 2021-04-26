@@ -1,5 +1,5 @@
 use num_traits::FromPrimitive;
-use serialport::{available_ports, ClearBuffer, SerialPort};
+use serialport::{available_ports, SerialPort};
 use std::error::Error;
 use std::time::Duration;
 
@@ -75,7 +75,6 @@ struct BootloaderConnection {
 
 impl BootloaderConnection {
     fn new(serial: Box<dyn SerialPort>) -> Result<Self> {
-        serial.clear(ClearBuffer::All)?;
         Ok(Self {
             serial,
             buf: Vec::new(),

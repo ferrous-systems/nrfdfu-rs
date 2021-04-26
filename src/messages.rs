@@ -4,7 +4,7 @@ use std::{
     io::{self, Read, Write},
 };
 
-use byteorder::{ReadBytesExt, LE};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use num_derive::FromPrimitive;
 
 // opcodes
@@ -12,8 +12,9 @@ use num_derive::FromPrimitive;
 #[derive(FromPrimitive, Debug)]
 pub enum NrfDfuOpCode {
     ProtocolVersion = 0x0,
+    Ping = 0x09,
     HardwareVersionGet = 0x0A,
-    Response = 0x60,    // marks the start of a response message
+    Response = 0x60, // marks the start of a response message
 }
 
 #[derive(FromPrimitive, Debug)]
@@ -135,5 +136,25 @@ impl Response for HardwareVersionResponse {
             ram_size: response_bytes.read_u32::<LE>()?,
             rom_page_size: response_bytes.read_u32::<LE>()?,
         })
+    }
+}
+
+pub struct PingRequest(pub u8);
+
+impl Request for PingRequest {
+    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::Ping;
+
+    type Response = PingResponse;
+
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write_u8(self.0)
+    }
+}
+
+pub struct PingResponse(pub u8);
+
+impl Response for PingResponse {
+    fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
+        Ok(Self(reader.read_u8()?))
     }
 }

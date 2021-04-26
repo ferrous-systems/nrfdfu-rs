@@ -5,13 +5,15 @@ use std::{
 };
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use num_derive::FromPrimitive;
+use num_derive::{FromPrimitive};
+
 
 // opcodes
 // note: incomplete; only contains opcodes that we currently use
 #[derive(FromPrimitive, Debug)]
 pub enum NrfDfuOpCode {
     ProtocolVersion = 0x0,
+    Select = 0x06,
     Ping = 0x09,
     HardwareVersionGet = 0x0A,
     Response = 0x60, // marks the start of a response message
@@ -55,6 +57,14 @@ pub enum ExtError {
     WrongSignatureType = 0x0B,
     VerificationFailed = 0x0C,
     InsufficientSpace = 0x0D,
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum NrfDfuObjectType {
+    Invalid = 0x00,
+    Command = 0x01,
+    Data = 0x02,
 }
 
 impl fmt::Display for DfuError {
@@ -129,6 +139,7 @@ pub struct HardwareVersionResponse {
 
 impl Response for HardwareVersionResponse {
     fn read_payload<R: Read>(mut response_bytes: R) -> io::Result<Self> {
+        // TODO: is this the wrong way round? should it be rom_page_size first?
         Ok(Self {
             part: response_bytes.read_u32::<LE>()?,
             variant: response_bytes.read_u32::<LE>()?,
@@ -151,10 +162,41 @@ impl Request for PingRequest {
     }
 }
 
+#[derive(Debug)]
 pub struct PingResponse(pub u8);
 
 impl Response for PingResponse {
     fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
         Ok(Self(reader.read_u8()?))
+    }
+}
+
+pub struct SelectRequest(pub NrfDfuObjectType);
+
+impl Request for SelectRequest {
+    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::Select;
+
+    type Response = SelectResponse;
+
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        // TOOD should I cast this more nicely?
+        writer.write_u8(self.0 as u8)
+    }
+}
+
+#[derive(Debug)]
+pub struct SelectResponse {
+    max_size: u32,
+    crc: u32,
+    offset: u32,
+}
+
+impl Response for SelectResponse {
+    fn read_payload<R: Read>(mut response_bytes: R) -> io::Result<Self> {
+        Ok(Self {
+            max_size: response_bytes.read_u32::<LE>()?,
+            crc: response_bytes.read_u32::<LE>()?,
+            offset: response_bytes.read_u32::<LE>()?,
+        })
     }
 }

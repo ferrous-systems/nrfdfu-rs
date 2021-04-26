@@ -7,8 +7,9 @@ mod messages;
 
 use messages::{
     DfuError, ExtError, NrfDfuOpCode, HardwareVersionRequest, HardwareVersionResponse,
-    NrfDfuResultCode,
-    ProtocolVersionRequest, Request, Response,
+    NrfDfuResultCode, NrfDfuObjectType,
+    ProtocolVersionRequest, PingRequest, PingResponse, Request, Response,
+    SelectRequest, SelectResponse,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -44,6 +45,14 @@ fn run() -> Result<()> {
     };
 
     let mut conn = BootloaderConnection::new(port)?;
+
+    let ping = conn.ping(1);
+    println!("ping response: {:?}", ping);
+
+    for i in 0..5 {
+        let obj_select= conn.select_object_command();
+        println!("ping response: {:?}", obj_select);
+    }
 
     let version = conn.fetch_protocol_version()?;
     println!("protocol version: {}", version);
@@ -172,5 +181,14 @@ impl BootloaderConnection {
 
     fn fetch_hardware_version(&mut self) -> Result<HardwareVersionResponse> {
         self.request(HardwareVersionRequest)
+    }
+
+    fn ping(&mut self, value_to_echo: u8) -> Result<PingResponse> {
+        self.request(PingRequest(value_to_echo))
+    }
+
+    // "Init packet"
+    fn select_object_command(&mut self) -> Result<SelectResponse> {
+        self.request(SelectRequest(NrfDfuObjectType::Command))
     }
 }

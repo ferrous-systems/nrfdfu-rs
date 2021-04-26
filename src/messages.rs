@@ -69,7 +69,6 @@ pub enum NrfDfuObjectType {
 
 impl fmt::Display for DfuError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO add error code names + descriptions
         write!(f, "DFU error code: {:?}", self.code)?;
         if self.ext_error.is_some() {
             write!(f, "| extended error code: {:?}", self.ext_error)?;

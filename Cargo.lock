@@ -131,7 +131,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "serialport",
- "slip-codec",
 ]
 
 [[package]]
@@ -211,12 +210,6 @@ dependencies = [
  "regex",
  "winapi",
 ]
-
-[[package]]
-name = "slip-codec"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "879341980ef89bfc6669fadeff38f1496b430a8e56bfdf9ab1cc13ceec0a8241"
 
 [[package]]
 name = "syn"

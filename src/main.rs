@@ -4,6 +4,7 @@ use std::error::Error;
 use std::time::Duration;
 
 mod messages;
+mod slip;
 
 use messages::{
     DfuError, ExtError, HardwareVersionRequest, HardwareVersionResponse, NrfDfuObjectType,
@@ -58,8 +59,6 @@ fn run() -> Result<()> {
 }
 
 struct BootloaderConnection {
-    slip_enc: slip_codec::Encoder,
-    slip_dec: slip_codec::Decoder,
     serial: Box<dyn SerialPort>,
     req_buf: Vec<u8>,
 }
@@ -68,8 +67,6 @@ impl BootloaderConnection {
     fn new(serial: Box<dyn SerialPort>) -> Result<Self> {
         serial.clear(ClearBuffer::All)?;
         Ok(Self {
-            slip_enc: slip_codec::Encoder::new(),
-            slip_dec: slip_codec::Decoder::new(),
             serial,
             req_buf: Vec::new(),
         })
@@ -82,18 +79,11 @@ impl BootloaderConnection {
 
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.req_buf.clear();
-        self.slip_enc.encode(&buf, &mut self.req_buf)?;
-
-        // HACK: slip-codec inserts END symbol before and after every frame, instead of just after
-        assert_eq!(self.req_buf[0], 0xC0);
-        self.req_buf.remove(0);
-
+        slip::encode_frame(&buf, &mut self.req_buf)?;
         self.serial.write_all(&self.req_buf)?;
 
         let mut response_bytes = vec![];
-        self.slip_dec
-            .decode(&mut self.serial, &mut response_bytes)
-            .map_err(|e| format!("{:?}", e))?;
+        slip::decode_frame(&mut self.serial, &mut response_bytes)?;
         eprintln!("resp: {:x?}", response_bytes);
 
         // Response format:

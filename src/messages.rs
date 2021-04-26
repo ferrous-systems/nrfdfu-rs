@@ -187,16 +187,20 @@ impl Request for SelectRequest {
 #[derive(Debug)]
 pub struct SelectResponse {
     max_size: u32,
-    crc: u32,
     offset: u32,
+    crc: u32,
 }
 
 impl Response for SelectResponse {
     fn read_payload<R: Read>(mut response_bytes: R) -> io::Result<Self> {
+        // NOTE: The parameter order is *not* in accordance with to the parameter order from the docs
+        // (https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v15.0.0%2Flib_dfu_transport.html)
+        // but rather follows the order from the firmware implementation:
+        // https://github.com/tmael/nRF5_SDK/blob/master/components/libraries/bootloader/serial_dfu/nrf_dfu_serial.c#L106
         Ok(Self {
             max_size: response_bytes.read_u32::<LE>()?,
-            crc: response_bytes.read_u32::<LE>()?,
             offset: response_bytes.read_u32::<LE>()?,
+            crc: response_bytes.read_u32::<LE>()?,
         })
     }
 }

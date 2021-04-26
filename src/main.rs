@@ -1,7 +1,6 @@
 use num_traits::FromPrimitive;
 use serialport::{available_ports, ClearBuffer, SerialPort};
 use std::error::Error;
-use std::thread::sleep;
 use std::time::Duration;
 
 mod messages;
@@ -46,17 +45,12 @@ fn run() -> Result<()> {
 
     let mut conn = BootloaderConnection::new(port)?;
 
-    for i in 0..5 {
-        let obj_select = conn.select_object_command();
-        println!("select object response: {:?}", obj_select);
-    }
+    let obj_select = conn.select_object_command();
+    println!("select object response: {:?}", obj_select);
 
     let version = conn.fetch_protocol_version()?;
     println!("protocol version: {}", version);
 
-    sleep(Duration::from_secs(5));
-
-    // TODO: ⚡️ this yields the protocol version response again
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
@@ -79,11 +73,6 @@ impl BootloaderConnection {
             serial,
             req_buf: Vec::new(),
         })
-    }
-
-    fn bytes_to_read(&self) {
-        let btr = self.serial.bytes_to_read();
-        println!("bytes_to_read: {:?}", btr);
     }
 
     fn request<R: Request>(&mut self, req: R) -> Result<R::Response> {

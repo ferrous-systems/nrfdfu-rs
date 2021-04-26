@@ -6,11 +6,7 @@ use std::time::Duration;
 mod messages;
 mod slip;
 
-use messages::{
-    DfuError, ExtError, HardwareVersionRequest, HardwareVersionResponse, NrfDfuObjectType,
-    NrfDfuResultCode, OpCode, ProtocolVersionRequest, Request, Response, SelectRequest,
-    SelectResponse,
-};
+use messages::*;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -56,6 +52,9 @@ fn run() -> Result<()> {
         )
         .into());
     }
+
+    // Disable receipt notification. USB is a reliable transport.
+    conn.set_receipt_notification(0)?;
 
     let obj_select = conn.select_object_command();
     println!("select object response: {:?}", obj_select);
@@ -190,5 +189,10 @@ impl BootloaderConnection {
     // "Init packet"
     fn select_object_command(&mut self) -> Result<SelectResponse> {
         self.request(SelectRequest(NrfDfuObjectType::Command))
+    }
+
+    fn set_receipt_notification(&mut self, every_n_packets: u16) -> Result<()> {
+        self.request(SetPrnRequest(every_n_packets))?;
+        Ok(())
     }
 }

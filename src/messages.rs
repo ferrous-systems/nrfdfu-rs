@@ -11,7 +11,8 @@ use num_derive::FromPrimitive;
 // note: incomplete; only contains opcodes that we currently use
 #[derive(FromPrimitive, Debug)]
 pub enum OpCode {
-    ProtocolVersion = 0x0,
+    ProtocolVersion = 0x00,
+    ReceiptNotifSet = 0x02,
     Select = 0x06,
     Ping = 0x09,
     HardwareVersionGet = 0x0A,
@@ -200,5 +201,25 @@ impl Response for SelectResponse {
             offset: response_bytes.read_u32::<LE>()?,
             crc: response_bytes.read_u32::<LE>()?,
         })
+    }
+}
+
+pub struct SetPrnRequest(pub u16);
+
+impl Request for SetPrnRequest {
+    const OPCODE: OpCode = OpCode::ReceiptNotifSet;
+
+    type Response = SetPrnResponse;
+
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write_u16::<LE>(self.0)
+    }
+}
+
+pub struct SetPrnResponse;
+
+impl Response for SetPrnResponse {
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        Ok(Self)
     }
 }

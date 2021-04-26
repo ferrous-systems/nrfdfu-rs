@@ -71,7 +71,7 @@ fn run() -> Result<()> {
 
 struct BootloaderConnection {
     serial: Box<dyn SerialPort>,
-    req_buf: Vec<u8>,
+    buf: Vec<u8>,
 }
 
 impl BootloaderConnection {
@@ -79,7 +79,7 @@ impl BootloaderConnection {
         serial.clear(ClearBuffer::All)?;
         Ok(Self {
             serial,
-            req_buf: Vec::new(),
+            buf: Vec::new(),
         })
     }
 
@@ -89,56 +89,55 @@ impl BootloaderConnection {
         eprintln!("req: {:x?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
-        self.req_buf.clear();
-        slip::encode_frame(&buf, &mut self.req_buf)?;
-        self.serial.write_all(&self.req_buf)?;
+        self.buf.clear();
+        slip::encode_frame(&buf, &mut self.buf)?;
+        self.serial.write_all(&self.buf)?;
 
-        let mut response_bytes = vec![];
-        slip::decode_frame(&mut self.serial, &mut response_bytes)?;
-        eprintln!("resp: {:x?}", response_bytes);
+        self.buf.clear();
+        slip::decode_frame(&mut self.serial, &mut self.buf)?;
+        eprintln!("resp: {:x?}", self.buf);
 
         // Response format:
         // - Fixed byte 0x60
         // - Request opcode
         // - Response result code
         // - Response payload
-        if response_bytes.len() < 3 {
+        if self.buf.len() < 3 {
             return Err(format!(
                 "truncated response (expected at least 3 bytes, got {})",
-                response_bytes.len()
+                self.buf.len()
             )
             .into());
         }
 
-        if response_bytes[0] != OpCode::Response as u8 {
+        if self.buf[0] != OpCode::Response as u8 {
             return Err(format!(
                 "malformed response (expected nrf DFU response preamble 0x60, got 0x{:02x})",
-                response_bytes[0]
+                self.buf[0]
             )
             .into());
         }
 
-        if response_bytes[1] != R::OPCODE as u8 {
+        if self.buf[1] != R::OPCODE as u8 {
             return Err(format!(
                 "malformed response (expected echoed opcode {:?} (0x{:02x}), got 0x{:02x})",
                 R::OPCODE,
                 R::OPCODE as u8,
-                response_bytes[1]
+                self.buf[1]
             )
             .into());
         }
 
-        let result: NrfDfuResultCode =
-            NrfDfuResultCode::from_u8(response_bytes[2]).ok_or_else(|| {
-                format!(
-                    "malformed response (invalid result code 0x{:02x})",
-                    response_bytes[2]
-                )
-            })?;
+        let result: NrfDfuResultCode = NrfDfuResultCode::from_u8(self.buf[2]).ok_or_else(|| {
+            format!(
+                "malformed response (invalid result code 0x{:02x})",
+                self.buf[2]
+            )
+        })?;
 
         match result {
             NrfDfuResultCode::Success => {}
-            NrfDfuResultCode::ExtError => match response_bytes.get(3) {
+            NrfDfuResultCode::ExtError => match self.buf.get(3) {
                 Some(byte) => {
                     let ext_error: ExtError = ExtError::from_u8(*byte).ok_or_else(|| {
                         format!(
@@ -166,7 +165,7 @@ impl BootloaderConnection {
             }
         }
 
-        let mut response_bytes = &response_bytes[3..];
+        let mut response_bytes = &self.buf[3..];
         let response = R::Response::read_payload(&mut response_bytes)?;
 
         if !response_bytes.is_empty() {

@@ -92,6 +92,7 @@ impl BootloaderConnection {
         eprintln!("req: {:x?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
+        self.req_buf.clear();
         self.slip_enc.encode(&buf, &mut self.req_buf)?;
         self.serial.write_all(&self.req_buf)?;
 

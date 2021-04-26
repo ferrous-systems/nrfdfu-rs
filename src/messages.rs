@@ -12,6 +12,7 @@ use num_derive::FromPrimitive;
 #[derive(FromPrimitive, Debug)]
 pub enum OpCode {
     ProtocolVersion = 0x00,
+    CreateObject = 0x01,
     ReceiptNotifSet = 0x02,
     Select = 0x06,
     MtuGet = 0x07,
@@ -202,6 +203,31 @@ impl Response for SelectResponse {
             offset: response_bytes.read_u32::<LE>()?,
             crc: response_bytes.read_u32::<LE>()?,
         })
+    }
+}
+
+pub struct CreateObjectRequest {
+    pub obj_type: NrfDfuObjectType,
+    pub size: u32,
+}
+
+impl Request for CreateObjectRequest {
+    const OPCODE: OpCode = OpCode::CreateObject;
+
+    type Response = CreateObjectResponse;
+
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write_u32::<LE>(self.obj_type as u32)?;
+        writer.write_u32::<LE>(self.size)?;
+        Ok(())
+    }
+}
+
+pub struct CreateObjectResponse;
+
+impl Response for CreateObjectResponse {
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        Ok(Self)
     }
 }
 

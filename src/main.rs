@@ -59,6 +59,11 @@ fn run() -> Result<()> {
     let mtu = conn.fetch_mtu()?;
     println!("MTU = {} Bytes", mtu);
 
+    if false {
+        // Needs support for sending init packets first.
+        conn.create_data_object(8)?;
+    }
+
     let obj_select = conn.select_object_command();
     println!("select object response: {:?}", obj_select);
 
@@ -191,6 +196,16 @@ impl BootloaderConnection {
     // "Init packet"
     fn select_object_command(&mut self) -> Result<SelectResponse> {
         self.request(SelectRequest(NrfDfuObjectType::Command))
+    }
+
+    fn create_data_object(&mut self, size: u32) -> Result<()> {
+        // Note: Data objects cannot be created if no init packet has been sent. This results in an
+        // `OperationNotPermitted` error.
+        self.request(CreateObjectRequest {
+            obj_type: NrfDfuObjectType::Data,
+            size,
+        })?;
+        Ok(())
     }
 
     fn set_receipt_notification(&mut self, every_n_packets: u16) -> Result<()> {

@@ -10,7 +10,7 @@ use num_derive::FromPrimitive;
 // opcodes
 // note: incomplete; only contains opcodes that we currently use
 #[derive(FromPrimitive, Debug)]
-pub enum NrfDfuOpCode {
+pub enum OpCode {
     ProtocolVersion = 0x0,
     Select = 0x06,
     Ping = 0x09,
@@ -80,7 +80,7 @@ impl fmt::Display for DfuError {
 impl Error for DfuError {}
 
 pub trait Request {
-    const OPCODE: NrfDfuOpCode;
+    const OPCODE: OpCode;
     type Response: Response;
 
     fn write_payload<W: Write>(&self, writer: W) -> io::Result<()>;
@@ -93,7 +93,7 @@ pub trait Response: Sized {
 pub struct ProtocolVersionRequest;
 
 impl Request for ProtocolVersionRequest {
-    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::ProtocolVersion;
+    const OPCODE: OpCode = OpCode::ProtocolVersion;
 
     type Response = ProtocolVersionResponse;
 
@@ -117,7 +117,7 @@ impl Response for ProtocolVersionResponse {
 pub struct HardwareVersionRequest;
 
 impl Request for HardwareVersionRequest {
-    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::HardwareVersionGet;
+    const OPCODE: OpCode = OpCode::HardwareVersionGet;
 
     type Response = HardwareVersionResponse;
 
@@ -151,7 +151,7 @@ impl Response for HardwareVersionResponse {
 pub struct PingRequest(pub u8);
 
 impl Request for PingRequest {
-    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::Ping;
+    const OPCODE: OpCode = OpCode::Ping;
 
     type Response = PingResponse;
 
@@ -172,7 +172,7 @@ impl Response for PingResponse {
 pub struct SelectRequest(pub NrfDfuObjectType);
 
 impl Request for SelectRequest {
-    const OPCODE: NrfDfuOpCode = NrfDfuOpCode::Select;
+    const OPCODE: OpCode = OpCode::Select;
 
     type Response = SelectResponse;
 

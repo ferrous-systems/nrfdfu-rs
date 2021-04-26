@@ -8,7 +8,7 @@ mod slip;
 
 use messages::{
     DfuError, ExtError, HardwareVersionRequest, HardwareVersionResponse, NrfDfuObjectType,
-    NrfDfuOpCode, NrfDfuResultCode, ProtocolVersionRequest, Request, Response, SelectRequest,
+    NrfDfuResultCode, OpCode, ProtocolVersionRequest, Request, Response, SelectRequest,
     SelectResponse,
 };
 
@@ -110,7 +110,7 @@ impl BootloaderConnection {
             .into());
         }
 
-        if response_bytes[0] != NrfDfuOpCode::Response as u8 {
+        if response_bytes[0] != OpCode::Response as u8 {
             return Err(format!(
                 "malformed response (expected nrf DFU response preamble 0x60, got 0x{:02x})",
                 response_bytes[0]

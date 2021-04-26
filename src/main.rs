@@ -94,6 +94,11 @@ impl BootloaderConnection {
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.req_buf.clear();
         self.slip_enc.encode(&buf, &mut self.req_buf)?;
+
+        // HACK: slip-codec inserts END symbol before and after every frame, instead of just after
+        assert_eq!(self.req_buf[0], 0xC0);
+        self.req_buf.remove(0);
+
         self.serial.write_all(&self.req_buf)?;
 
         let mut response_bytes = vec![];

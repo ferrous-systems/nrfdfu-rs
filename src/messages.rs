@@ -138,7 +138,6 @@ pub struct HardwareVersionResponse {
 
 impl Response for HardwareVersionResponse {
     fn read_payload<R: Read>(mut response_bytes: R) -> io::Result<Self> {
-        // TODO: is this the wrong way round? should it be rom_page_size first?
         Ok(Self {
             part: response_bytes.read_u32::<LE>()?,
             variant: response_bytes.read_u32::<LE>()?,

@@ -67,6 +67,7 @@ struct BootloaderConnection {
     slip_enc: slip_codec::Encoder,
     slip_dec: slip_codec::Decoder,
     serial: Box<dyn SerialPort>,
+    req_buf: Vec<u8>,
 }
 
 impl BootloaderConnection {
@@ -76,6 +77,7 @@ impl BootloaderConnection {
             slip_enc: slip_codec::Encoder::new(),
             slip_dec: slip_codec::Decoder::new(),
             serial,
+            req_buf: Vec::new(),
         })
     }
 
@@ -88,7 +90,10 @@ impl BootloaderConnection {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
         eprintln!("req: {:x?}", buf);
-        self.slip_enc.encode(&buf, &mut self.serial)?;
+
+        // Go through an intermediate buffer to avoid writing every byte individually.
+        self.slip_enc.encode(&buf, &mut self.req_buf)?;
+        self.serial.write_all(&self.req_buf)?;
 
         let mut response_bytes = vec![];
         self.slip_dec

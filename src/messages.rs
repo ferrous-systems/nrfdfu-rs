@@ -14,6 +14,7 @@ pub enum OpCode {
     ProtocolVersion = 0x00,
     ReceiptNotifSet = 0x02,
     Select = 0x06,
+    MtuGet = 0x07,
     Ping = 0x09,
     HardwareVersionGet = 0x0A,
     Response = 0x60, // marks the start of a response message
@@ -221,5 +222,25 @@ pub struct SetPrnResponse;
 impl Response for SetPrnResponse {
     fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
         Ok(Self)
+    }
+}
+
+pub struct GetMtuRequest;
+
+impl Request for GetMtuRequest {
+    const OPCODE: OpCode = OpCode::MtuGet;
+
+    type Response = GetMtuResponse;
+
+    fn write_payload<W: Write>(&self, _writer: W) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+pub struct GetMtuResponse(pub u16);
+
+impl Response for GetMtuResponse {
+    fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
+        Ok(Self(reader.read_u16::<LE>()?))
     }
 }

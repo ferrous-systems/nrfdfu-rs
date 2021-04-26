@@ -56,6 +56,9 @@ fn run() -> Result<()> {
     // Disable receipt notification. USB is a reliable transport.
     conn.set_receipt_notification(0)?;
 
+    let mtu = conn.fetch_mtu()?;
+    println!("MTU = {} Bytes", mtu);
+
     let obj_select = conn.select_object_command();
     println!("select object response: {:?}", obj_select);
 
@@ -193,5 +196,9 @@ impl BootloaderConnection {
     fn set_receipt_notification(&mut self, every_n_packets: u16) -> Result<()> {
         self.request(SetPrnRequest(every_n_packets))?;
         Ok(())
+    }
+
+    fn fetch_mtu(&mut self) -> Result<u16> {
+        Ok(self.request(GetMtuRequest)?.0)
     }
 }

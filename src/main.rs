@@ -17,6 +17,9 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const USB_VID: u16 = 0x1915;
 const USB_PID: u16 = 0x521f;
 
+/// Bootloader protocol version we support.
+const PROTOCOL_VERSION: u8 = 1;
+
 fn main() {
     match run() {
         Ok(()) => {}
@@ -45,6 +48,14 @@ fn run() -> Result<()> {
     };
 
     let mut conn = BootloaderConnection::new(port)?;
+    let proto_version = conn.fetch_protocol_version()?;
+    if proto_version != PROTOCOL_VERSION {
+        return Err(format!(
+            "device reports protocol version {}, we only support {}",
+            proto_version, PROTOCOL_VERSION
+        )
+        .into());
+    }
 
     let obj_select = conn.select_object_command();
     println!("select object response: {:?}", obj_select);

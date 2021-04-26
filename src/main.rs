@@ -1,16 +1,15 @@
 use num_traits::FromPrimitive;
 use serialport::{available_ports, ClearBuffer, SerialPort};
 use std::error::Error;
-use std::time::Duration;
 use std::thread::sleep;
+use std::time::Duration;
 
 mod messages;
 
 use messages::{
-    DfuError, ExtError, NrfDfuOpCode, HardwareVersionRequest, HardwareVersionResponse,
-    NrfDfuResultCode, NrfDfuObjectType,
-    ProtocolVersionRequest, Request, Response,
-    SelectRequest, SelectResponse,
+    DfuError, ExtError, HardwareVersionRequest, HardwareVersionResponse, NrfDfuObjectType,
+    NrfDfuOpCode, NrfDfuResultCode, ProtocolVersionRequest, Request, Response, SelectRequest,
+    SelectResponse,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -48,7 +47,7 @@ fn run() -> Result<()> {
     let mut conn = BootloaderConnection::new(port)?;
 
     for i in 0..5 {
-        let obj_select= conn.select_object_command();
+        let obj_select = conn.select_object_command();
         println!("select object response: {:?}", obj_select);
     }
 
@@ -80,7 +79,7 @@ impl BootloaderConnection {
         })
     }
 
-    fn bytes_to_read(&self){
+    fn bytes_to_read(&self) {
         let btr = self.serial.bytes_to_read();
         println!("bytes_to_read: {:?}", btr);
     }
@@ -178,9 +177,9 @@ impl BootloaderConnection {
 
     fn fetch_protocol_version(&mut self) -> Result<u8> {
         let response = self.request(ProtocolVersionRequest);
-        match response{
+        match response {
             Ok(version_response) => Ok(version_response.version),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 

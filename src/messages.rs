@@ -5,8 +5,7 @@ use std::{
 };
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use num_derive::{FromPrimitive};
-
+use num_derive::FromPrimitive;
 
 // opcodes
 // note: incomplete; only contains opcodes that we currently use

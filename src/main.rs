@@ -2,6 +2,8 @@ use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::error::Error;
 use std::time::Duration;
+use std::fs::File;
+use std::io::Read;
 
 mod messages;
 mod slip;
@@ -72,6 +74,8 @@ fn run() -> Result<()> {
 
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
+
+    conn.send_init_packet()?;
 
     Ok(())
 }
@@ -193,9 +197,45 @@ impl BootloaderConnection {
         self.request(HardwareVersionRequest)
     }
 
-    // "Init packet"
+    /// WIP: fill this in as we figure out how the protocol works.
+    /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
+    /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
+    fn send_init_packet(&mut self) -> Result<()> {
+        println!("Sending init packet...");
+        let select_response =  self.select_object_command()?;
+        println!("Object selected: {:?}", select_response);
+
+        // TODO pass file path into fn
+        let mut dat_file = File::open("loopback.dat").expect("no file found");
+        let mut data = Vec::new();
+        dat_file.read_to_end(&mut data)?;
+        let data_size = data.len() as u32;
+
+        // e.g. self.__create_command(len(init_packet))
+        println!("Creating Command...");
+        self.create_command_object(data_size)?;
+        println!("Command created");
+
+        // e.g. self.__stream_data(data=init_packet)
+        println!("Streaming Data: len: {}", data_size);
+        let write_response = self.send_write_request(data)?;
+        // TODO: calculate crc and send crc packet
+        println!("Write response: {:?}", write_response);
+
+        Ok(())
+    }
+
+    /// "Init packet"
     fn select_object_command(&mut self) -> Result<SelectResponse> {
         self.request(SelectRequest(NrfDfuObjectType::Command))
+    }
+
+    fn create_command_object(&mut self, size: u32) -> Result<()> {
+        self.request(CreateObjectRequest {
+            obj_type: NrfDfuObjectType::Command,
+            size,
+        })?;
+        Ok(())
     }
 
     fn create_data_object(&mut self, size: u32) -> Result<()> {
@@ -215,5 +255,11 @@ impl BootloaderConnection {
 
     fn fetch_mtu(&mut self) -> Result<u16> {
         Ok(self.request(GetMtuRequest)?.0)
+    }
+
+    fn send_write_request(&mut self, data: Vec<u8>) -> Result<WriteResponse> {
+        self.request(WriteRequest{
+            request_payload: data,
+        })
     }
 }

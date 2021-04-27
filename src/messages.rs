@@ -16,6 +16,7 @@ pub enum OpCode {
     ReceiptNotifSet = 0x02,
     Select = 0x06,
     MtuGet = 0x07,
+    Write = 0x08,
     Ping = 0x09,
     HardwareVersionGet = 0x0A,
     Response = 0x60, // marks the start of a response message
@@ -217,12 +218,18 @@ impl Request for CreateObjectRequest {
     type Response = CreateObjectResponse;
 
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        writer.write_u32::<LE>(self.obj_type as u32)?;
+        // note:
+        // https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v15.0.0%2Flib_dfu_transport.html
+        // suggests that `object_type` should be a uint_32t, but message sent by `pc-nrfutil`
+        // seems to hold this as a `u8`?
+        // TODO dive deeper into `pc-nrfutil` & firmware and verify
+        writer.write_u8(self.obj_type as u8)?;
         writer.write_u32::<LE>(self.size)?;
         Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct CreateObjectResponse;
 
 impl Response for CreateObjectResponse {
@@ -268,5 +275,33 @@ pub struct GetMtuResponse(pub u16);
 impl Response for GetMtuResponse {
     fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
         Ok(Self(reader.read_u16::<LE>()?))
+    }
+}
+pub struct WriteRequest {
+    pub request_payload: Vec<u8>,
+}
+
+impl Request for WriteRequest {
+    const OPCODE: OpCode = OpCode::Write;
+
+    type Response = WriteResponse;
+
+    // TODO: note that this currently does not take into account the MTU –
+    // we'll need to split this up into several requests for any data that exceeds the MTU
+    // reported by the target device
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write(&self.request_payload[..]);
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+// MAY contain a crc
+pub struct WriteResponse(pub Option<u32>);
+
+impl Response for WriteResponse {
+    fn read_payload<R: Read>(mut _reader: R) -> io::Result<Self> {
+        // TODO: check if crc is present; only read if yes
+        todo!();
     }
 }

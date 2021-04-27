@@ -219,8 +219,10 @@ impl BootloaderConnection {
         // e.g. self.__stream_data(data=init_packet)
         println!("Streaming Data: len: {}", data_size);
         let write_response = self.send_write_request(data)?;
-        // TODO: calculate crc and send crc packet
-        println!("Write response: {:?}", write_response);
+        // TODO: calculate crc and check against what we received
+        let target_crc = self.get_crc()?;
+        println!("Write response: {:?} | crc: {:?}", write_response, target_crc);
+
 
         Ok(())
     }
@@ -261,5 +263,9 @@ impl BootloaderConnection {
         self.request(WriteRequest{
             request_payload: data,
         })
+    }
+
+    fn get_crc(&mut self) -> Result<CrcResponse>{
+        self.request(CrcRequest)
     }
 }

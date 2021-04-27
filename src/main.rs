@@ -1,10 +1,10 @@
 use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::error::Error;
-use std::time::Duration;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::time::Duration;
 
 mod messages;
 mod slip;
@@ -213,7 +213,7 @@ impl BootloaderConnection {
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
     fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
         println!("Sending init packet...");
-        let select_response =  self.select_object_command()?;
+        let select_response = self.select_object_command()?;
         println!("Object selected: {:?}", select_response);
 
         let mut dat_file = File::open(dat_path).expect(".dat file not found");
@@ -231,7 +231,10 @@ impl BootloaderConnection {
         let write_response = self.send_write_request(data)?;
         // TODO: calculate crc and check against what we received
         let target_crc = self.get_crc()?;
-        println!("Write response: {:?} | crc: {:?}", write_response, target_crc);
+        println!(
+            "Write response: {:?} | crc: {:?}",
+            write_response, target_crc
+        );
 
         self.execute()?;
 
@@ -272,17 +275,17 @@ impl BootloaderConnection {
 
     fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
         // firmware doesn't return WriteResponse in our use case; ignore for now
-        self.request(WriteRequest{
+        self.request(WriteRequest {
             request_payload: data,
         })
     }
 
-    fn get_crc(&mut self) -> Result<CrcResponse>{
+    fn get_crc(&mut self) -> Result<CrcResponse> {
         self.request_response(CrcRequest)
     }
 
     // tell the target to execute whatever request setup we sent them before
-    fn execute(&mut self) -> Result<ExecuteResponse>{
+    fn execute(&mut self) -> Result<ExecuteResponse> {
         self.request_response(ExecuteRequest)
     }
 }

@@ -68,13 +68,19 @@ mod tests {
     fn test_encode() {
         assert_eq!(encode(&[0]), vec![0, END]);
         assert_eq!(encode(&[END, 9]), vec![ESC, ESC_END, 9, END]);
-        assert_eq!(encode(&[0, END, ESC, 1]), vec![0, ESC, ESC_END, ESC, ESC_ESC, 1, END]);
+        assert_eq!(
+            encode(&[0, END, ESC, 1]),
+            vec![0, ESC, ESC_END, ESC, ESC_ESC, 1, END]
+        );
     }
 
     #[test]
     fn test_decode() {
         assert_eq!(decode(&[0, END]), vec![0]);
         assert_eq!(decode(&[ESC, ESC_END, 9, END]), vec![END, 9]);
-        assert_eq!(decode(&[0, ESC, ESC_END, ESC, ESC_ESC, 1, END]), vec![0, END, ESC, 1]);
+        assert_eq!(
+            decode(&[0, ESC, ESC_END, ESC, ESC_ESC, 1, END]),
+            vec![0, END, ESC, 1]
+        );
     }
 }

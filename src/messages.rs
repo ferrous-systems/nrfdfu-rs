@@ -322,14 +322,14 @@ impl Request for CrcRequest {
 }
 
 #[derive(Debug)]
-pub struct CrcResponse{
+pub struct CrcResponse {
     pub offset: u32,
     pub crc: u32,
 }
 
 impl Response for CrcResponse {
     fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
-        Ok(Self{
+        Ok(Self {
             offset: reader.read_u32::<LE>()?,
             crc: reader.read_u32::<LE>()?,
         })

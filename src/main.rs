@@ -93,7 +93,8 @@ impl BootloaderConnection {
         })
     }
 
-    fn request<R: Request>(&mut self, req: R) -> Result<R::Response> {
+    /// send `req` and do not fetch any response
+    fn request<R: Request>(&mut self, req: R) -> Result<()> {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
         eprintln!("--> {:?}", buf);
@@ -102,6 +103,14 @@ impl BootloaderConnection {
         self.buf.clear();
         slip::encode_frame(&buf, &mut self.buf)?;
         self.serial.write_all(&self.buf)?;
+
+        Ok(())
+    }
+
+    /// send `req` and expect a response.
+    /// aborts if no response is received within timeout window.
+    fn request_response<R: Request>(&mut self, req: R) -> Result<R::Response> {
+        self.request(req)?;
 
         self.buf.clear();
         slip::decode_frame(&mut self.serial, &mut self.buf)?;
@@ -186,7 +195,7 @@ impl BootloaderConnection {
     }
 
     fn fetch_protocol_version(&mut self) -> Result<u8> {
-        let response = self.request(ProtocolVersionRequest);
+        let response = self.request_response(ProtocolVersionRequest);
         match response {
             Ok(version_response) => Ok(version_response.version),
             Err(e) => Err(e),
@@ -194,7 +203,7 @@ impl BootloaderConnection {
     }
 
     fn fetch_hardware_version(&mut self) -> Result<HardwareVersionResponse> {
-        self.request(HardwareVersionRequest)
+        self.request_response(HardwareVersionRequest)
     }
 
     /// WIP: fill this in as we figure out how the protocol works.
@@ -229,11 +238,11 @@ impl BootloaderConnection {
 
     /// "Init packet"
     fn select_object_command(&mut self) -> Result<SelectResponse> {
-        self.request(SelectRequest(NrfDfuObjectType::Command))
+        self.request_response(SelectRequest(NrfDfuObjectType::Command))
     }
 
     fn create_command_object(&mut self, size: u32) -> Result<()> {
-        self.request(CreateObjectRequest {
+        self.request_response(CreateObjectRequest {
             obj_type: NrfDfuObjectType::Command,
             size,
         })?;
@@ -243,7 +252,7 @@ impl BootloaderConnection {
     fn create_data_object(&mut self, size: u32) -> Result<()> {
         // Note: Data objects cannot be created if no init packet has been sent. This results in an
         // `OperationNotPermitted` error.
-        self.request(CreateObjectRequest {
+        self.request_response(CreateObjectRequest {
             obj_type: NrfDfuObjectType::Data,
             size,
         })?;
@@ -251,21 +260,22 @@ impl BootloaderConnection {
     }
 
     fn set_receipt_notification(&mut self, every_n_packets: u16) -> Result<()> {
-        self.request(SetPrnRequest(every_n_packets))?;
+        self.request_response(SetPrnRequest(every_n_packets))?;
         Ok(())
     }
 
     fn fetch_mtu(&mut self) -> Result<u16> {
-        Ok(self.request(GetMtuRequest)?.0)
+        Ok(self.request_response(GetMtuRequest)?.0)
     }
 
-    fn send_write_request(&mut self, data: Vec<u8>) -> Result<WriteResponse> {
+    fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
+        // firmware doesn't return WriteResponse in our use case; ignore for now
         self.request(WriteRequest{
             request_payload: data,
         })
     }
 
     fn get_crc(&mut self) -> Result<CrcResponse>{
-        self.request(CrcRequest)
+        self.request_response(CrcRequest)
     }
 }

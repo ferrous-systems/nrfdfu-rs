@@ -303,7 +303,7 @@ pub struct WriteResponse(pub Option<u32>);
 
 impl Response for WriteResponse {
     fn read_payload<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: check if crc is present; only read if yes
+        // firmware doesn't return WriteResponse in our use case; ignore for now
         todo!();
     }
 }

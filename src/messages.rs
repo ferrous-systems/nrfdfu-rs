@@ -15,6 +15,7 @@ pub enum OpCode {
     CreateObject = 0x01,
     ReceiptNotifSet = 0x02,
     Crc = 0x03,
+    Execute = 0x04,
     Select = 0x06,
     MtuGet = 0x07,
     Write = 0x08,
@@ -332,5 +333,29 @@ impl Response for CrcResponse {
             offset: reader.read_u32::<LE>()?,
             crc: reader.read_u32::<LE>()?,
         })
+    }
+}
+
+pub struct ExecuteRequest;
+
+impl Request for ExecuteRequest {
+    const OPCODE: OpCode = OpCode::Execute;
+
+    type Response = ExecuteResponse;
+
+    fn write_payload<W: Write>(&self, _writer: W) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct ExecuteResponse();
+
+impl Response for ExecuteResponse {
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        // `pc-nrfutil` logs `96, 4, 1]` being the execute response, but
+        // the docs say that the execute response has no parameters
+        // TODO: figure out what's going on there.
+        Ok(Self())
     }
 }

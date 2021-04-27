@@ -232,6 +232,7 @@ impl BootloaderConnection {
         let target_crc = self.get_crc()?;
         println!("Write response: {:?} | crc: {:?}", write_response, target_crc);
 
+        self.execute()?;
 
         Ok(())
     }
@@ -277,5 +278,10 @@ impl BootloaderConnection {
 
     fn get_crc(&mut self) -> Result<CrcResponse>{
         self.request_response(CrcRequest)
+    }
+
+    // tell the target to execute whatever request setup we sent them before
+    fn execute(&mut self) -> Result<ExecuteResponse>{
+        self.request_response(ExecuteRequest)
     }
 }

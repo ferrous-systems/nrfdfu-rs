@@ -92,7 +92,7 @@ impl BootloaderConnection {
     fn request<R: Request>(&mut self, req: R) -> Result<R::Response> {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
-        eprintln!("req: {:x?}", buf);
+        eprintln!("--> {:?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.buf.clear();
@@ -101,7 +101,7 @@ impl BootloaderConnection {
 
         self.buf.clear();
         slip::decode_frame(&mut self.serial, &mut self.buf)?;
-        eprintln!("resp: {:x?}", self.buf);
+        eprintln!("<-- {:?}", self.buf);
 
         // Response format:
         // - Fixed byte 0x60

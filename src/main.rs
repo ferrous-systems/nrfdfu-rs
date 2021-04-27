@@ -4,6 +4,7 @@ use std::error::Error;
 use std::time::Duration;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
 mod messages;
 mod slip;
@@ -75,7 +76,8 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
-    conn.send_init_packet()?;
+    let dat_path = Path::new("loopback.dat");
+    conn.send_init_packet(dat_path)?;
 
     Ok(())
 }
@@ -209,13 +211,12 @@ impl BootloaderConnection {
     /// WIP: fill this in as we figure out how the protocol works.
     /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
-    fn send_init_packet(&mut self) -> Result<()> {
+    fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
         println!("Sending init packet...");
         let select_response =  self.select_object_command()?;
         println!("Object selected: {:?}", select_response);
 
-        // TODO pass file path into fn
-        let mut dat_file = File::open("loopback.dat").expect("no file found");
+        let mut dat_file = File::open(dat_path).expect(".dat file not found");
         let mut data = Vec::new();
         dat_file.read_to_end(&mut data)?;
         let data_size = data.len() as u32;

@@ -293,7 +293,7 @@ impl Request for WriteRequest {
     // we'll need to split this up into several requests for any data that exceeds the MTU
     // reported by the target device
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        writer.write(&self.request_payload[..]);
+        writer.write(&self.request_payload[..])?;
         Ok(())
     }
 }

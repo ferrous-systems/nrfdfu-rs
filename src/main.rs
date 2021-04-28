@@ -57,14 +57,6 @@ fn run() -> Result<()> {
     // Disable receipt notification. USB is a reliable transport.
     conn.set_receipt_notification(0)?;
 
-    let mtu = conn.fetch_mtu()?;
-    println!("MTU = {} Bytes", mtu);
-
-    if false {
-        // Needs support for sending init packets first.
-        conn.create_data_object(8)?;
-    }
-
     let obj_select = conn.select_object_command();
     println!("select object response: {:?}", obj_select);
 
@@ -78,20 +70,28 @@ fn run() -> Result<()> {
     let data = init_packet::build_init_packet(&[0, 1, 2]);
     conn.send_init_packet(&data)?;
 
+    conn.create_data_object(3)?;
+
     Ok(())
 }
 
 struct BootloaderConnection {
     serial: Box<dyn SerialPort>,
     buf: Vec<u8>,
+    mtu: u16,
 }
 
 impl BootloaderConnection {
     fn new(serial: Box<dyn SerialPort>) -> Result<Self> {
-        Ok(Self {
+        let mut this = Self {
             serial,
             buf: Vec::new(),
-        })
+            mtu: 0,
+        };
+        let mtu = this.fetch_mtu()?;
+        println!("MTU = {} Bytes", mtu);
+        this.mtu = mtu;
+        Ok(this)
     }
 
     /// send `req` and do not fetch any response
@@ -223,7 +223,7 @@ impl BootloaderConnection {
 
         // e.g. self.__stream_data(data=init_packet)
         println!("Streaming Data: len: {}", data_size);
-        let write_response = self.send_write_request(data)?;
+        let write_response = self.write_object_data(data)?;
         // TODO: calculate crc and check against what we received
         let target_crc = self.get_crc()?;
         println!(
@@ -278,16 +278,17 @@ impl BootloaderConnection {
         Ok(self.request_response(GetMtuRequest)?.0)
     }
 
-    fn send_write_request(&mut self, data: &[u8]) -> Result<()> {
-        // TODO: note that this currently does not take into account the MTU –
-        // we'll need to split this up into several requests for any data that exceeds the MTU
-        // reported by the target device
+    fn write_object_data(&mut self, data: &[u8]) -> Result<()> {
         // TODO: this also needs to take into account the receipt response
 
-        // firmware doesn't return WriteResponse in our use case; ignore for now
-        self.request(WriteRequest {
-            request_payload: data,
-        })
+        for chunk in data.chunks(self.mtu.into()) {
+            // firmware doesn't return WriteResponse in our use case; ignore for now
+            self.request(WriteRequest {
+                request_payload: chunk,
+            })?;
+        }
+
+        Ok(())
     }
 
     fn get_crc(&mut self) -> Result<CrcResponse> {

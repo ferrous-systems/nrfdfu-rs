@@ -1,6 +1,9 @@
 use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::error::Error;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::time::Duration;
 
 mod messages;
@@ -73,6 +76,9 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
+    let dat_path = Path::new("loopback.dat");
+    conn.send_init_packet(dat_path)?;
+
     Ok(())
 }
 
@@ -89,19 +95,28 @@ impl BootloaderConnection {
         })
     }
 
-    fn request<R: Request>(&mut self, req: R) -> Result<R::Response> {
+    /// send `req` and do not fetch any response
+    fn request<R: Request>(&mut self, req: R) -> Result<()> {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
-        eprintln!("req: {:x?}", buf);
+        eprintln!("--> {:?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.buf.clear();
         slip::encode_frame(&buf, &mut self.buf)?;
         self.serial.write_all(&self.buf)?;
 
+        Ok(())
+    }
+
+    /// send `req` and expect a response.
+    /// aborts if no response is received within timeout window.
+    fn request_response<R: Request>(&mut self, req: R) -> Result<R::Response> {
+        self.request(req)?;
+
         self.buf.clear();
         slip::decode_frame(&mut self.serial, &mut self.buf)?;
-        eprintln!("resp: {:x?}", self.buf);
+        eprintln!("<-- {:?}", self.buf);
 
         // Response format:
         // - Fixed byte 0x60
@@ -182,7 +197,7 @@ impl BootloaderConnection {
     }
 
     fn fetch_protocol_version(&mut self) -> Result<u8> {
-        let response = self.request(ProtocolVersionRequest);
+        let response = self.request_response(ProtocolVersionRequest);
         match response {
             Ok(version_response) => Ok(version_response.version),
             Err(e) => Err(e),
@@ -190,18 +205,68 @@ impl BootloaderConnection {
     }
 
     fn fetch_hardware_version(&mut self) -> Result<HardwareVersionResponse> {
-        self.request(HardwareVersionRequest)
+        self.request_response(HardwareVersionRequest)
     }
 
-    // "Init packet"
+    /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
+    /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
+    fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
+        println!("Sending init packet...");
+        let select_response = self.select_object_command()?;
+        println!("Object selected: {:?}", select_response);
+
+        let mut dat_file = File::open(dat_path).expect(".dat file not found");
+        let mut data = Vec::new();
+        dat_file.read_to_end(&mut data)?;
+        let data_size = data.len() as u32;
+
+        // e.g. self.__create_command(len(init_packet))
+        println!("Creating Command...");
+        self.create_command_object(data_size)?;
+        println!("Command created");
+
+        // e.g. self.__stream_data(data=init_packet)
+        println!("Streaming Data: len: {}", data_size);
+        let write_response = self.send_write_request(data)?;
+        // TODO: calculate crc and check against what we received
+        let target_crc = self.get_crc()?;
+        println!(
+            "Write response: {:?} | crc: {:?}",
+            write_response, target_crc
+        );
+
+        self.execute()?;
+
+        Ok(())
+    }
+
+    /// Sends a
+    /// Request Type: `Select`
+    /// Parameters:   `Object type = Command`
     fn select_object_command(&mut self) -> Result<SelectResponse> {
-        self.request(SelectRequest(NrfDfuObjectType::Command))
+        self.request_response(SelectRequest(NrfDfuObjectType::Command))
     }
 
+    /// Sends a
+    /// Request Type: `Create`
+    /// Parameters:   `Object type = Command`
+    ///               `size`
+    fn create_command_object(&mut self, size: u32) -> Result<()> {
+        self.request_response(CreateObjectRequest {
+            obj_type: NrfDfuObjectType::Command,
+            size,
+        })?;
+        Ok(())
+    }
+
+    /// Sends a
+    /// Request Type: `Create`
+    /// Parameters:   `Object type = Data`
+    ///               `size`
     fn create_data_object(&mut self, size: u32) -> Result<()> {
         // Note: Data objects cannot be created if no init packet has been sent. This results in an
         // `OperationNotPermitted` error.
-        self.request(CreateObjectRequest {
+        self.request_response(CreateObjectRequest {
             obj_type: NrfDfuObjectType::Data,
             size,
         })?;
@@ -209,11 +274,32 @@ impl BootloaderConnection {
     }
 
     fn set_receipt_notification(&mut self, every_n_packets: u16) -> Result<()> {
-        self.request(SetPrnRequest(every_n_packets))?;
+        self.request_response(SetPrnRequest(every_n_packets))?;
         Ok(())
     }
 
     fn fetch_mtu(&mut self) -> Result<u16> {
-        Ok(self.request(GetMtuRequest)?.0)
+        Ok(self.request_response(GetMtuRequest)?.0)
+    }
+
+    fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
+        // TODO: note that this currently does not take into account the MTU –
+        // we'll need to split this up into several requests for any data that exceeds the MTU
+        // reported by the target device
+        // TODO: this also needs to take into account the receipt response
+
+        // firmware doesn't return WriteResponse in our use case; ignore for now
+        self.request(WriteRequest {
+            request_payload: data,
+        })
+    }
+
+    fn get_crc(&mut self) -> Result<CrcResponse> {
+        self.request_response(CrcRequest)
+    }
+
+    // tell the target to execute whatever request setup we sent them before
+    fn execute(&mut self) -> Result<ExecuteResponse> {
+        self.request_response(ExecuteRequest)
     }
 }

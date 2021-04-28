@@ -14,8 +14,11 @@ pub enum OpCode {
     ProtocolVersion = 0x00,
     CreateObject = 0x01,
     ReceiptNotifSet = 0x02,
+    Crc = 0x03,
+    Execute = 0x04,
     Select = 0x06,
     MtuGet = 0x07,
+    Write = 0x08,
     Ping = 0x09,
     HardwareVersionGet = 0x0A,
     Response = 0x60, // marks the start of a response message
@@ -180,7 +183,7 @@ impl Request for SelectRequest {
     type Response = SelectResponse;
 
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        // TOOD should I cast this more nicely?
+        // TODO should I cast this more nicely?
         writer.write_u8(self.0 as u8)
     }
 }
@@ -217,12 +220,18 @@ impl Request for CreateObjectRequest {
     type Response = CreateObjectResponse;
 
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        writer.write_u32::<LE>(self.obj_type as u32)?;
+        // note:
+        // https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v15.0.0%2Flib_dfu_transport.html
+        // suggests that `object_type` should be a uint_32t, but message sent by `pc-nrfutil`
+        // seems to hold this as a `u8`?
+        // TODO dive deeper into `pc-nrfutil` & firmware and verify
+        writer.write_u8(self.obj_type as u8)?;
         writer.write_u32::<LE>(self.size)?;
         Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct CreateObjectResponse;
 
 impl Response for CreateObjectResponse {
@@ -268,5 +277,79 @@ pub struct GetMtuResponse(pub u16);
 impl Response for GetMtuResponse {
     fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
         Ok(Self(reader.read_u16::<LE>()?))
+    }
+}
+
+pub struct WriteRequest {
+    pub request_payload: Vec<u8>,
+}
+
+impl Request for WriteRequest {
+    const OPCODE: OpCode = OpCode::Write;
+
+    type Response = WriteResponse;
+
+    fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write(&self.request_payload[..])?;
+        Ok(())
+    }
+}
+
+/// HACK: this is never used, write responses depend on the receipt response and are handled
+/// manually.
+#[derive(Debug)]
+pub enum WriteResponse {}
+
+impl Response for WriteResponse {
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        unreachable!()
+    }
+}
+
+pub struct CrcRequest;
+
+impl Request for CrcRequest {
+    const OPCODE: OpCode = OpCode::Crc;
+
+    type Response = CrcResponse;
+
+    fn write_payload<W: Write>(&self, _writer: W) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct CrcResponse {
+    pub offset: u32,
+    pub crc: u32,
+}
+
+impl Response for CrcResponse {
+    fn read_payload<R: Read>(mut reader: R) -> io::Result<Self> {
+        Ok(Self {
+            offset: reader.read_u32::<LE>()?,
+            crc: reader.read_u32::<LE>()?,
+        })
+    }
+}
+
+pub struct ExecuteRequest;
+
+impl Request for ExecuteRequest {
+    const OPCODE: OpCode = OpCode::Execute;
+
+    type Response = ExecuteResponse;
+
+    fn write_payload<W: Write>(&self, _writer: W) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct ExecuteResponse;
+
+impl Response for ExecuteResponse {
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        Ok(Self)
     }
 }

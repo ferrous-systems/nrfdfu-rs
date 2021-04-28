@@ -283,10 +283,12 @@ impl BootloaderConnection {
     }
 
     fn write_object_data(&mut self, data: &[u8]) -> Result<()> {
-        // TODO: this also needs to take into account the receipt response
-
-        for chunk in data.chunks(self.mtu.into()) {
-            // firmware doesn't return WriteResponse in our use case; ignore for now
+        // On the wire, the write request contains the opcode byte, and is then SLIP-encoded,
+        // potentially doubling the size, so the chunk size has to be smaller than the MTU.
+        let max_chunk_size = usize::from(self.mtu / 2 - 1);
+        for chunk in data.chunks(max_chunk_size) {
+            // TODO: this also needs to take into account the receipt response. In our case we turn
+            // it off, so there's nothing to do here.
             self.request(WriteRequest {
                 request_payload: chunk,
             })?;

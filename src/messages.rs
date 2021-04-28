@@ -67,7 +67,6 @@ pub enum ExtError {
 #[repr(u8)]
 #[derive(Copy, Clone)]
 pub enum NrfDfuObjectType {
-    Invalid = 0x00,
     Command = 0x01,
     Data = 0x02,
 }

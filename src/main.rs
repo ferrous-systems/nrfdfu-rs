@@ -1,9 +1,6 @@
 use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::error::Error;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
 use std::time::Duration;
 
 mod messages;
@@ -76,8 +73,8 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
-    let dat_path = Path::new("loopback.dat");
-    conn.send_init_packet(dat_path)?;
+    let data = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
+    conn.send_init_packet(&data)?;
 
     Ok(())
 }
@@ -210,14 +207,11 @@ impl BootloaderConnection {
 
     /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
-    fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
+    fn send_init_packet(&mut self, data: &[u8]) -> Result<()> {
         println!("Sending init packet...");
         let select_response = self.select_object_command()?;
         println!("Object selected: {:?}", select_response);
 
-        let mut dat_file = File::open(dat_path).expect(".dat file not found");
-        let mut data = Vec::new();
-        dat_file.read_to_end(&mut data)?;
         let data_size = data.len() as u32;
 
         // e.g. self.__create_command(len(init_packet))
@@ -282,7 +276,7 @@ impl BootloaderConnection {
         Ok(self.request_response(GetMtuRequest)?.0)
     }
 
-    fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
+    fn send_write_request(&mut self, data: &[u8]) -> Result<()> {
         // TODO: note that this currently does not take into account the MTU –
         // we'll need to split this up into several requests for any data that exceeds the MTU
         // reported by the target device

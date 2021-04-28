@@ -279,17 +279,17 @@ impl Response for GetMtuResponse {
     }
 }
 
-pub struct WriteRequest {
-    pub request_payload: Vec<u8>,
+pub struct WriteRequest<'a> {
+    pub request_payload: &'a [u8],
 }
 
-impl Request for WriteRequest {
+impl Request for WriteRequest<'_> {
     const OPCODE: OpCode = OpCode::Write;
 
     type Response = WriteResponse;
 
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        writer.write(&self.request_payload[..])?;
+        writer.write(self.request_payload)?;
         Ok(())
     }
 }

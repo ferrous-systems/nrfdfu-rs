@@ -26,18 +26,28 @@ pub enum OpCode {
 
 #[derive(FromPrimitive, Debug)]
 pub enum ResultCode {
-    Invalid = 0x00,               // Invalid opcode.
-    Success = 0x01,               // Operation successful.
-    OpCodeNotSupported = 0x02,    // Opcode not supported.
-    InvalidParameter = 0x03,      // Missing or invalid parameter value.
-    InsufficientResources = 0x04, // Not enough memory for the data object.
-    InvalidObject = 0x05, // Data object does not match the firmware and hardware requirements,
-    // the signature is wrong, or parsing the command failed.
-    UnsupoortedType = 0x07, // Not a valid object type for a Create request.
-    OperationNotPermitted = 0x08, // The state of the DFU process does not allow this operation.
-    OperationFailed = 0x0A, // Operation failed.
-    ExtError = 0x0B, // Extended error. The next byte of the response contains the error code of
-                     // the extended error (see @ref nrf_dfu_ext_error_code_t.
+    /// Invalid request opcode.
+    Invalid = 0x00,
+    /// Operation succeeded.
+    Success = 0x01,
+    /// Opcode not supported.
+    OpCodeNotSupported = 0x02,
+    /// Missing or invalid request parameter.
+    InvalidParameter = 0x03,
+    /// Not enough memory for the data object.
+    InsufficientResources = 0x04,
+    /// Data object does not match the firmware and hardware requirements,
+    /// the signature is wrong, or parsing the command failed.
+    InvalidObject = 0x05,
+    /// Not a valid object type for a Create request.
+    UnsupportedType = 0x07,
+    /// The state of the DFU process does not allow this operation.
+    OperationNotPermitted = 0x08,
+    /// Operation failed.
+    OperationFailed = 0x0A,
+    /// Extended error. The next byte of the response contains the error code of
+    /// the extended error (see `ExtError`).
+    ExtError = 0x0B,
 }
 
 #[derive(Debug)]

@@ -240,7 +240,6 @@ impl BootloaderConnection {
         Ok(())
     }
 
-
     /// Sends a
     /// Request Type: `Select`
     /// Parameters:   `Object type = Command`
@@ -287,6 +286,7 @@ impl BootloaderConnection {
         // TODO: note that this currently does not take into account the MTU –
         // we'll need to split this up into several requests for any data that exceeds the MTU
         // reported by the target device
+        // TODO: this also needs to take into account the receipt response
 
         // firmware doesn't return WriteResponse in our use case; ignore for now
         self.request(WriteRequest {

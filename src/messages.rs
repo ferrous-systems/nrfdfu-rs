@@ -295,14 +295,14 @@ impl Request for WriteRequest {
     }
 }
 
+/// HACK: this is never used, write responses depend on the receipt response and are handled
+/// manually.
 #[derive(Debug)]
-// MAY contain a crc
-pub struct WriteResponse(pub Option<u32>);
+pub enum WriteResponse {}
 
 impl Response for WriteResponse {
-    fn read_payload<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // firmware doesn't return WriteResponse in our use case; ignore for now
-        todo!();
+    fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
+        unreachable!()
     }
 }
 

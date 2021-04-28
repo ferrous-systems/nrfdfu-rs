@@ -45,14 +45,6 @@ fn run() -> Result<()> {
     };
 
     let mut conn = BootloaderConnection::new(port)?;
-    let proto_version = conn.fetch_protocol_version()?;
-    if proto_version != PROTOCOL_VERSION {
-        return Err(format!(
-            "device reports protocol version {}, we only support {}",
-            proto_version, PROTOCOL_VERSION
-        )
-        .into());
-    }
 
     // Disable receipt notification. USB is a reliable transport.
     conn.set_receipt_notification(0)?;
@@ -88,6 +80,18 @@ impl BootloaderConnection {
             buf: Vec::new(),
             mtu: 0,
         };
+
+        // We must check the protocol version before doing anything else, since any other command
+        // might change if the version changes.
+        let proto_version = this.fetch_protocol_version()?;
+        if proto_version != PROTOCOL_VERSION {
+            return Err(format!(
+                "device reports protocol version {}, we only support {}",
+                proto_version, PROTOCOL_VERSION
+            )
+            .into());
+        }
+
         let mtu = this.fetch_mtu()?;
         println!("MTU = {} Bytes", mtu);
         this.mtu = mtu;

@@ -11,3 +11,8 @@ serialport = "4.0.0"
 num-derive = "0.3"
 num-traits = "0.2"
 byteorder = "1.4.3"
+leb128 = "0.2.4"
+sha2 = "0.9.3"
+
+[dev-dependencies]
+expect-test = "1"

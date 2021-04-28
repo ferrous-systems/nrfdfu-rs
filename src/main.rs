@@ -3,6 +3,7 @@ use serialport::{available_ports, SerialPort};
 use std::error::Error;
 use std::time::Duration;
 
+mod init_packet;
 mod messages;
 mod slip;
 
@@ -73,7 +74,8 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
-    let data = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
+    //let data = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
+    let data = init_packet::build_init_packet(&[0, 1, 2]);
     conn.send_init_packet(&data)?;
 
     Ok(())

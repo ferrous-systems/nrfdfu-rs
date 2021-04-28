@@ -76,8 +76,13 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
+    println!("==================================================");
+    println!(" FLASHING FIRMWARE");
+    println!("==================================================");
     let dat_path = Path::new("loopback.dat");
-    conn.send_init_packet(dat_path)?;
+    let bin_path = Path::new("loopback.bin");
+    conn.send_init_packet(dat_path, mtu)?;
+    conn.send_firmware(bin_path, mtu)?;
 
     Ok(())
 }
@@ -210,15 +215,15 @@ impl BootloaderConnection {
 
     /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
-    fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
-        println!("Sending init packet...");
-        let select_response = self.select_object_command()?;
-        println!("Object selected: {:?}", select_response);
-
+    fn send_init_packet(&mut self, dat_path: &Path, mtu: u16) -> Result<()> {
         let mut dat_file = File::open(dat_path).expect(".dat file not found");
         let mut data = Vec::new();
         dat_file.read_to_end(&mut data)?;
         let data_size = data.len() as u32;
+
+        println!("Sending init packet...");
+        let select_response = self.select_object_command()?;
+        println!("Object selected: {:?}", select_response);
 
         // e.g. self.__create_command(len(init_packet))
         println!("Creating Command...");
@@ -227,19 +232,43 @@ impl BootloaderConnection {
 
         // e.g. self.__stream_data(data=init_packet)
         println!("Streaming Data: len: {}", data_size);
-        let write_response = self.send_write_request(data)?;
+        self.stream_data(data, mtu)?;
         // TODO: calculate crc and check against what we received
-        let target_crc = self.get_crc()?;
-        println!(
-            "Write response: {:?} | crc: {:?}",
-            write_response, target_crc
-        );
+        let _target_crc = self.get_crc()?;
 
+        // e.g. self.__execute()
         self.execute()?;
 
         Ok(())
     }
 
+    /// WIP: fill this in as we figure out how the protocol works.
+    /// `mtu`: Maxmimum Transmission unit; The maximum number of bytes to be sent in one packet
+    fn send_firmware(&mut self, bin_path: &Path, mtu: u16) -> Result<()> {
+        // TODO deduplicate with send_init_packet code
+        let mut bin_file = File::open(bin_path).expect("firmware file not found");
+        let mut data = Vec::new();
+        bin_file.read_to_end(&mut data)?;
+        let data_size = data.len() as u32;
+
+        println!("Sending firmware file...");
+
+        // TODO: use actual firmware img
+        let data_size = 42;
+
+        // e.g. self.__create_data(len(data))
+        self.create_data_object(data_size);
+
+        // e.g. self.__stream_data(data=data, crc=response['crc'], offset=i)
+        self.stream_data(data, mtu)?;
+        // TODO: calculate crc and check against what we received
+        let _target_crc = self.get_crc()?;
+
+        // e.g. self.__execute()
+        self.execute()?;
+
+        Ok(())
+    }
 
     /// Sends a
     /// Request Type: `Select`
@@ -283,11 +312,32 @@ impl BootloaderConnection {
         Ok(self.request_response(GetMtuRequest)?.0)
     }
 
-    fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
-        // firmware doesn't return WriteResponse in our use case; ignore for now
-        self.request(WriteRequest {
-            request_payload: data,
-        })
+    // TODO pass data by reference
+    fn stream_data(&mut self, mut data: Vec<u8>, mtu: u16) -> Result<()> {
+
+        let max_payload = ((mtu-1)/2 - 1) as usize; // stolen from `dfu_transport_serial::__stream_data()`
+        let mut bytes_left = data.len();
+
+        println!("Streaming {} bytes in chunks of <={}...", data.len(), max_payload);
+
+        // Q: how do I do this more idiomatically?
+        while bytes_left > 0 {
+            let chunk_size = match bytes_left < max_payload {
+                true => bytes_left,
+                false => max_payload,
+            };
+
+            bytes_left -= chunk_size;
+
+            let chunk: Vec<u8> = data.drain(0..chunk_size).collect();
+            // firmware doesn't return WriteResponse in our use case; ignore for now
+            self.request(WriteRequest {
+                request_payload: chunk,
+            });
+            println!("\n\n");
+        }
+
+        Ok(())
     }
 
     fn get_crc(&mut self) -> Result<CrcResponse> {

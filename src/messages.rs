@@ -203,9 +203,9 @@ impl Request for SelectRequest {
 
 #[derive(Debug)]
 pub struct SelectResponse {
-    max_size: u32,
-    offset: u32,
-    crc: u32,
+    pub max_size: u32,
+    pub offset: u32,
+    pub crc: u32,
 }
 
 impl Response for SelectResponse {

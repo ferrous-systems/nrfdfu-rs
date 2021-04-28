@@ -25,7 +25,7 @@ pub enum OpCode {
 }
 
 #[derive(FromPrimitive, Debug)]
-pub enum NrfDfuResultCode {
+pub enum ResultCode {
     Invalid = 0x00,               // Invalid opcode.
     Success = 0x01,               // Operation successful.
     OpCodeNotSupported = 0x02,    // Opcode not supported.
@@ -42,7 +42,7 @@ pub enum NrfDfuResultCode {
 
 #[derive(Debug)]
 pub struct DfuError {
-    pub code: NrfDfuResultCode,
+    pub code: ResultCode,
     pub ext_error: Option<ExtError>,
 }
 
@@ -66,7 +66,7 @@ pub enum ExtError {
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
-pub enum NrfDfuObjectType {
+pub enum ObjectType {
     Command = 0x01,
     Data = 0x02,
 }
@@ -174,7 +174,7 @@ impl Response for PingResponse {
     }
 }
 
-pub struct SelectRequest(pub NrfDfuObjectType);
+pub struct SelectRequest(pub ObjectType);
 
 impl Request for SelectRequest {
     const OPCODE: OpCode = OpCode::Select;
@@ -209,7 +209,7 @@ impl Response for SelectResponse {
 }
 
 pub struct CreateObjectRequest {
-    pub obj_type: NrfDfuObjectType,
+    pub obj_type: ObjectType,
     pub size: u32,
 }
 

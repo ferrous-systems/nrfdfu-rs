@@ -149,7 +149,7 @@ impl BootloaderConnection {
             .into());
         }
 
-        let result: NrfDfuResultCode = NrfDfuResultCode::from_u8(self.buf[2]).ok_or_else(|| {
+        let result: ResultCode = ResultCode::from_u8(self.buf[2]).ok_or_else(|| {
             format!(
                 "malformed response (invalid result code 0x{:02x})",
                 self.buf[2]
@@ -157,8 +157,8 @@ impl BootloaderConnection {
         })?;
 
         match result {
-            NrfDfuResultCode::Success => {}
-            NrfDfuResultCode::ExtError => match self.buf.get(3) {
+            ResultCode::Success => {}
+            ResultCode::ExtError => match self.buf.get(3) {
                 Some(byte) => {
                     let ext_error: ExtError = ExtError::from_u8(*byte).ok_or_else(|| {
                         format!(
@@ -168,7 +168,7 @@ impl BootloaderConnection {
                     })?;
 
                     return Err(DfuError {
-                        code: NrfDfuResultCode::ExtError,
+                        code: ResultCode::ExtError,
                         ext_error: Some(ext_error),
                     }
                     .into());
@@ -244,7 +244,7 @@ impl BootloaderConnection {
     /// Request Type: `Select`
     /// Parameters:   `Object type = Command`
     fn select_object_command(&mut self) -> Result<SelectResponse> {
-        self.request_response(SelectRequest(NrfDfuObjectType::Command))
+        self.request_response(SelectRequest(ObjectType::Command))
     }
 
     /// Sends a
@@ -253,7 +253,7 @@ impl BootloaderConnection {
     ///               `size`
     fn create_command_object(&mut self, size: u32) -> Result<()> {
         self.request_response(CreateObjectRequest {
-            obj_type: NrfDfuObjectType::Command,
+            obj_type: ObjectType::Command,
             size,
         })?;
         Ok(())
@@ -267,7 +267,7 @@ impl BootloaderConnection {
         // Note: Data objects cannot be created if no init packet has been sent. This results in an
         // `OperationNotPermitted` error.
         self.request_response(CreateObjectRequest {
-            obj_type: NrfDfuObjectType::Data,
+            obj_type: ObjectType::Data,
             size,
         })?;
         Ok(())

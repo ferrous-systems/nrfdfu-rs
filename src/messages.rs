@@ -346,13 +346,10 @@ impl Request for ExecuteRequest {
 }
 
 #[derive(Debug)]
-pub struct ExecuteResponse();
+pub struct ExecuteResponse;
 
 impl Response for ExecuteResponse {
     fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
-        // `pc-nrfutil` logs `96, 4, 1]` being the execute response, but
-        // the docs say that the execute response has no parameters
-        // TODO: figure out what's going on there.
-        Ok(Self())
+        Ok(Self)
     }
 }

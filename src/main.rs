@@ -208,7 +208,6 @@ impl BootloaderConnection {
         self.request_response(HardwareVersionRequest)
     }
 
-    /// WIP: fill this in as we figure out how the protocol works.
     /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
     fn send_init_packet(&mut self, dat_path: &Path) -> Result<()> {
@@ -241,11 +240,18 @@ impl BootloaderConnection {
         Ok(())
     }
 
-    /// "Init packet"
+
+    /// Sends a
+    /// Request Type: `Select`
+    /// Parameters:   `Object type = Command`
     fn select_object_command(&mut self) -> Result<SelectResponse> {
         self.request_response(SelectRequest(NrfDfuObjectType::Command))
     }
 
+    /// Sends a
+    /// Request Type: `Create`
+    /// Parameters:   `Object type = Command`
+    ///               `size`
     fn create_command_object(&mut self, size: u32) -> Result<()> {
         self.request_response(CreateObjectRequest {
             obj_type: NrfDfuObjectType::Command,
@@ -254,6 +260,10 @@ impl BootloaderConnection {
         Ok(())
     }
 
+    /// Sends a
+    /// Request Type: `Create`
+    /// Parameters:   `Object type = Data`
+    ///               `size`
     fn create_data_object(&mut self, size: u32) -> Result<()> {
         // Note: Data objects cannot be created if no init packet has been sent. This results in an
         // `OperationNotPermitted` error.

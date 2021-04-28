@@ -284,6 +284,10 @@ impl BootloaderConnection {
     }
 
     fn send_write_request(&mut self, data: Vec<u8>) -> Result<()> {
+        // TODO: note that this currently does not take into account the MTU –
+        // we'll need to split this up into several requests for any data that exceeds the MTU
+        // reported by the target device
+
         // firmware doesn't return WriteResponse in our use case; ignore for now
         self.request(WriteRequest {
             request_payload: data,

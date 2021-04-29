@@ -51,13 +51,6 @@ primitive_enum! {
     }
 }
 
-/// An error code returned by the bootloader.
-#[derive(Debug)]
-pub struct DfuError {
-    code: ResultCode,
-    ext_error: Option<ExtError>,
-}
-
 primitive_enum! {
     #[derive(Debug)]
     pub enum ExtError(u8) {
@@ -78,11 +71,11 @@ primitive_enum! {
     }
 }
 
-#[repr(u8)]
-#[derive(Copy, Clone)]
-pub enum ObjectType {
-    Command = 0x01,
-    Data = 0x02,
+/// An error code returned by the bootloader.
+#[derive(Debug)]
+pub struct DfuError {
+    code: ResultCode,
+    ext_error: Option<ExtError>,
 }
 
 impl fmt::Display for DfuError {
@@ -97,6 +90,13 @@ impl fmt::Display for DfuError {
 }
 
 impl Error for DfuError {}
+
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum ObjectType {
+    Command = 0x01,
+    Data = 0x02,
+}
 
 pub trait Request {
     const OPCODE: OpCode;

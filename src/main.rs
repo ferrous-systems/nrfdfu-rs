@@ -3,14 +3,12 @@ use serialport::{available_ports, SerialPort};
 use std::time::Duration;
 use std::{error::Error, fs};
 
-mod dfu_package;
+mod elf;
 mod init_packet;
 mod messages;
 mod slip;
 
 use messages::*;
-
-use crate::dfu_package::DfuPackage;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -32,10 +30,10 @@ fn main() {
 
 fn run() -> Result<()> {
     let elf_path = std::env::args_os().skip(1).next();
-    let package = match elf_path {
+    let image = match elf_path {
         Some(path) => {
             let elf = fs::read(&path)?;
-            Some(DfuPackage::from_elf(&elf)?)
+            Some(elf::read_elf_image(&elf)?)
         }
         None => None,
     };
@@ -70,14 +68,11 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     println!("hardware version: {:?}", hw_version);
 
-    let (init_packet, data_len) = match package {
-        Some(pkg) => (pkg.init_packet, pkg.image.len() as u32),
-        None => (init_packet::build_init_packet(&[0, 1, 2]), 3), // dummy packet
-    };
-    conn.send_init_packet(&init_packet)?;
+    let image = image.unwrap_or_else(|| vec![1, 2, 3]);
 
-    println!("creating {} Byte data object", data_len);
-    conn.create_data_object(data_len)?;
+    let init_packet = init_packet::build_init_packet(&image);
+    conn.send_init_packet(&init_packet)?;
+    conn.create_data_object(image.len() as u32)?;
 
     Ok(())
 }

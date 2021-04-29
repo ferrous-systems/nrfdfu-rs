@@ -51,10 +51,11 @@ primitive_enum! {
     }
 }
 
+/// An error code returned by the bootloader.
 #[derive(Debug)]
 pub struct DfuError {
-    pub code: ResultCode,
-    pub ext_error: Option<ExtError>,
+    code: ResultCode,
+    ext_error: Option<ExtError>,
 }
 
 primitive_enum! {
@@ -364,4 +365,79 @@ impl Response for ExecuteResponse {
     fn read_payload<R: Read>(_reader: R) -> io::Result<Self> {
         Ok(Self)
     }
+}
+
+pub fn parse_response<R: Request>(buf: &[u8]) -> crate::Result<R::Response> {
+    // Response format:
+    // - Fixed byte 0x60
+    // - Request opcode
+    // - Response result code
+    // - Response payload
+    if buf.len() < 3 {
+        return Err(format!(
+            "truncated response (expected at least 3 bytes, got {})",
+            buf.len()
+        )
+        .into());
+    }
+
+    if buf[0] != OpCode::Response as u8 {
+        return Err(format!(
+            "malformed response (expected nrf DFU response preamble 0x60, got 0x{:02x})",
+            buf[0]
+        )
+        .into());
+    }
+
+    if buf[1] != R::OPCODE as u8 {
+        return Err(format!(
+            "malformed response (expected echoed opcode {:?} (0x{:02x}), got 0x{:02x})",
+            R::OPCODE,
+            R::OPCODE as u8,
+            buf[1]
+        )
+        .into());
+    }
+
+    let result: ResultCode = ResultCode::from_primitive(buf[2])
+        .ok_or_else(|| format!("malformed response (invalid result code 0x{:02x})", buf[2]))?;
+
+    match result {
+        ResultCode::Success => {}
+        ResultCode::ExtError => match buf.get(3) {
+            Some(byte) => {
+                let ext_error: ExtError = ExtError::from_primitive(*byte).ok_or_else(|| {
+                    format!(
+                        "malformed response (unknown extended error code 0x{:02x})",
+                        byte
+                    )
+                })?;
+
+                return Err(DfuError {
+                    code: ResultCode::ExtError,
+                    ext_error: Some(ext_error),
+                }
+                .into());
+            }
+            None => {
+                return Err(format!("malformed response (missing extended error byte)").into());
+            }
+        },
+        code => {
+            return Err(DfuError {
+                code,
+                ext_error: None,
+            }
+            .into())
+        }
+    }
+
+    let mut response_bytes = &buf[3..];
+    let response = R::Response::read_payload(&mut response_bytes)?;
+
+    if !response_bytes.is_empty() {
+        return Err(format!("trailing bytes in response").into());
+    }
+
+    Ok(response)
 }

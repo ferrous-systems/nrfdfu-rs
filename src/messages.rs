@@ -5,11 +5,10 @@ use std::{
 };
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use num_derive::FromPrimitive;
 
 // opcodes
 // note: incomplete; only contains opcodes that we currently use
-#[derive(FromPrimitive, Debug)]
+#[derive(Debug)]
 pub enum OpCode {
     ProtocolVersion = 0x00,
     CreateObject = 0x01,
@@ -24,30 +23,32 @@ pub enum OpCode {
     Response = 0x60, // marks the start of a response message
 }
 
-#[derive(FromPrimitive, Debug)]
-pub enum ResultCode {
-    /// Invalid request opcode.
-    Invalid = 0x00,
-    /// Operation succeeded.
-    Success = 0x01,
-    /// Opcode not supported.
-    OpCodeNotSupported = 0x02,
-    /// Missing or invalid request parameter.
-    InvalidParameter = 0x03,
-    /// Not enough memory for the data object.
-    InsufficientResources = 0x04,
-    /// Data object does not match the firmware and hardware requirements,
-    /// the signature is wrong, or parsing the command failed.
-    InvalidObject = 0x05,
-    /// Not a valid object type for a Create request.
-    UnsupportedType = 0x07,
-    /// The state of the DFU process does not allow this operation.
-    OperationNotPermitted = 0x08,
-    /// Operation failed.
-    OperationFailed = 0x0A,
-    /// Extended error. The next byte of the response contains the error code of
-    /// the extended error (see `ExtError`).
-    ExtError = 0x0B,
+primitive_enum! {
+    #[derive(Debug)]
+    pub enum ResultCode(u8) {
+        /// Invalid request opcode.
+        Invalid = 0x00,
+        /// Operation succeeded.
+        Success = 0x01,
+        /// Opcode not supported.
+        OpCodeNotSupported = 0x02,
+        /// Missing or invalid request parameter.
+        InvalidParameter = 0x03,
+        /// Not enough memory for the data object.
+        InsufficientResources = 0x04,
+        /// Data object does not match the firmware and hardware requirements,
+        /// the signature is wrong, or parsing the command failed.
+        InvalidObject = 0x05,
+        /// Not a valid object type for a Create request.
+        UnsupportedType = 0x07,
+        /// The state of the DFU process does not allow this operation.
+        OperationNotPermitted = 0x08,
+        /// Operation failed.
+        OperationFailed = 0x0A,
+        /// Extended error. The next byte of the response contains the error code of
+        /// the extended error (see `ExtError`).
+        ExtError = 0x0B,
+    }
 }
 
 #[derive(Debug)]
@@ -56,22 +57,24 @@ pub struct DfuError {
     pub ext_error: Option<ExtError>,
 }
 
-#[derive(FromPrimitive, Debug)]
-pub enum ExtError {
-    NoError = 0x00,
-    InvalidErrorCode = 0x01,
-    WrongCommandFormat = 0x02,
-    UnknownCommand = 0x03,
-    InitCommandInvalid = 0x04,
-    FwVersionFailure = 0x05,
-    HwVersionFailure = 0x06,
-    SdVersionFailure = 0x07,
-    SignatureMissing = 0x08,
-    WrongHashType = 0x09,
-    HashFailed = 0x0A,
-    WrongSignatureType = 0x0B,
-    VerificationFailed = 0x0C,
-    InsufficientSpace = 0x0D,
+primitive_enum! {
+    #[derive(Debug)]
+    pub enum ExtError(u8) {
+        NoError = 0x00,
+        InvalidErrorCode = 0x01,
+        WrongCommandFormat = 0x02,
+        UnknownCommand = 0x03,
+        InitCommandInvalid = 0x04,
+        FwVersionFailure = 0x05,
+        HwVersionFailure = 0x06,
+        SdVersionFailure = 0x07,
+        SignatureMissing = 0x08,
+        WrongHashType = 0x09,
+        HashFailed = 0x0A,
+        WrongSignatureType = 0x0B,
+        VerificationFailed = 0x0C,
+        InsufficientSpace = 0x0D,
+    }
 }
 
 #[repr(u8)]

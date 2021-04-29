@@ -1,9 +1,10 @@
 use log::LevelFilter;
-use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::time::Duration;
 use std::{error::Error, fs};
 
+#[macro_use]
+mod macros;
 mod elf;
 mod init_packet;
 mod messages;
@@ -169,7 +170,7 @@ impl BootloaderConnection {
             .into());
         }
 
-        let result: ResultCode = ResultCode::from_u8(self.buf[2]).ok_or_else(|| {
+        let result: ResultCode = ResultCode::from_primitive(self.buf[2]).ok_or_else(|| {
             format!(
                 "malformed response (invalid result code 0x{:02x})",
                 self.buf[2]
@@ -180,7 +181,7 @@ impl BootloaderConnection {
             ResultCode::Success => {}
             ResultCode::ExtError => match self.buf.get(3) {
                 Some(byte) => {
-                    let ext_error: ExtError = ExtError::from_u8(*byte).ok_or_else(|| {
+                    let ext_error: ExtError = ExtError::from_primitive(*byte).ok_or_else(|| {
                         format!(
                             "malformed response (unknown extended error code 0x{:02x})",
                             byte

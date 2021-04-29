@@ -52,7 +52,7 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
 
     let mut image = Vec::new();
     let mut addr = chunks[0].flash_addr;
-    eprintln!("firmware starts at {:#x}", addr);
+    log::debug!("firmware starts at {:#x}", addr);
     for chunk in &chunks {
         if chunk.flash_addr < addr {
             return Err(format!(
@@ -66,12 +66,12 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
         let gap = chunk.flash_addr - addr;
         image.extend(iter::once(0xFF).take(gap as usize));
         if gap > 0 {
-            eprintln!("0x{:08x}-0x{:08x} (gap)", addr, chunk.flash_addr - 1);
+            log::debug!("0x{:08x}-0x{:08x} (gap)", addr, chunk.flash_addr - 1);
         }
 
         image.extend(chunk.data);
 
-        eprintln!(
+        log::debug!(
             "0x{:08x}-0x{:08x}",
             chunk.flash_addr,
             chunk.flash_addr as usize + chunk.data.len()

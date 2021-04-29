@@ -1,3 +1,4 @@
+use log::LevelFilter;
 use num_traits::FromPrimitive;
 use serialport::{available_ports, SerialPort};
 use std::time::Duration;
@@ -29,6 +30,12 @@ fn main() {
 }
 
 fn run() -> Result<()> {
+    // We show info and higer levels by default, but allow overriding this via `RUST_LOG`.
+    env_logger::builder()
+        .filter_level(LevelFilter::Info)
+        .parse_default_env()
+        .init();
+
     let elf_path = std::env::args_os().skip(1).next();
     let image = match elf_path {
         Some(path) => {

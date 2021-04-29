@@ -215,6 +215,21 @@ pub fn build_init_packet(image: &[u8]) -> Vec<u8> {
         hasher.update(image);
         hasher.finalize()
     };
+    let hash = &*hash;
+
+    log::debug!(
+        "image size: {} Bytes / {} KiB",
+        image.len(),
+        image.len() / 1024,
+    );
+    log::debug!(
+        "image hash: {}",
+        hash.iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect::<Vec<_>>()
+            .join("")
+    );
+
     let packet = Packet::Command(Command::InitCommand(InitCommand {
         // 52 is the default, the docs do not recommend using it, but it's unclear how to
         // accomplish that.
@@ -223,7 +238,7 @@ pub fn build_init_packet(image: &[u8]) -> Vec<u8> {
         app_size: image.len() as _,
         hash: Hash {
             hash_type: HashType::Sha256,
-            hash: hash.as_ref(),
+            hash,
         },
         is_debug: Some(true),
     }));
@@ -238,8 +253,12 @@ mod tests {
 
     fn test_message(debug_filename: &str, msg: impl rohs::Message, expect: Expect) {
         let bytes = rohs::encode_message(&msg);
+
+        // Dump the encoded data to a file for easier inspection:
+        // `protoc --decode_raw < tmp/file.dat`
         std::fs::create_dir_all("tmp").unwrap();
         std::fs::write(format!("tmp/{}.dat", debug_filename), &bytes).unwrap();
+
         let actual = format!("{:x?}", bytes);
         expect.assert_eq(&actual);
     }

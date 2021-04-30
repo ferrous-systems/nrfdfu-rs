@@ -82,12 +82,15 @@ fn run() -> Result<()> {
 
     let image = image.unwrap_or_else(|| vec![1, 2, 3]);
 
-    //let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
-    let init_packet = init_packet::build_init_packet(&image);
+    let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
+    //let init_packet = init_packet::build_init_packet(&image);
     conn.send_init_packet(&init_packet)?;
 
-    //let image = Path::new("loopback.bin");
-    conn.send_firmware(image)?;
+    let test_image = Path::new("loopback.bin");
+    let mut bin_file = File::open(test_image).expect("firmware file not found");
+    let mut data = Vec::new();
+    bin_file.read_to_end(&mut data)?;
+    conn.send_firmware(&data)?;
 
     Ok(())
 }
@@ -186,12 +189,8 @@ impl BootloaderConnection {
 
     /// Sends the firmware image at `bin_path`.
     /// This is done in chunks to avoid exceeding our MTU  and involves periodic CRC checks.
-    fn send_firmware(&mut self, bin_path: &Path) -> Result<()> {
-        let mut bin_file = File::open(bin_path).expect("firmware file not found");
-        let mut data = Vec::new();
-        bin_file.read_to_end(&mut data)?;
-
-        println!("Sending firmware file...");
+    fn send_firmware(&mut self, image: &[u8]) -> Result<()> {
+        println!("Sending firmware image...");
 
         println!("Selecting Object: type Data");
         let select_response = self.select_object_data()?;
@@ -203,7 +202,7 @@ impl BootloaderConnection {
         // potentially doubling the size, so the chunk size has to be smaller than the MTU.
         let max_chunk_size = usize::from(self.mtu / 2 - 1);
 
-        for chunk in data.chunks( max_size.try_into().unwrap()){
+        for chunk in image.chunks( max_size.try_into().unwrap()){
             let curr_chunk_sz: u32 = chunk.len().try_into().unwrap();
             self.create_data_object(curr_chunk_sz)?;
             println!("Streaming Data: len: {}", curr_chunk_sz);

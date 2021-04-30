@@ -220,7 +220,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrfutil-rs"
+name = "nrfdfu"
 version = "0.1.0"
 dependencies = [
  "byteorder",

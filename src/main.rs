@@ -82,15 +82,15 @@ fn run() -> Result<()> {
 
     let image = image.unwrap_or_else(|| vec![1, 2, 3]);
 
-    let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
-    //let init_packet = init_packet::build_init_packet(&image);
+    //let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
+    let init_packet = init_packet::build_init_packet(&image);
     conn.send_init_packet(&init_packet)?;
 
-    let test_image = Path::new("loopback.bin");
-    let mut bin_file = File::open(test_image).expect("firmware file not found");
-    let mut data = Vec::new();
-    bin_file.read_to_end(&mut data)?;
-    conn.send_firmware(&data)?;
+    // let test_image = Path::new("loopback.bin");
+    // let mut bin_file = File::open(test_image).expect("firmware file not found");
+    // let mut image = Vec::new();
+    // bin_file.read_to_end(&mut image)?;
+    conn.send_firmware(&image)?;
 
     Ok(())
 }

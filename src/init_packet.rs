@@ -218,7 +218,7 @@ pub fn build_init_packet(image: &[u8]) -> Vec<u8> {
     let hash = &*hash;
 
     log::debug!(
-        "image size: {} Bytes / {} KiB",
+        "image size: {} Bytes ({} KiB)",
         image.len(),
         image.len() / 1024,
     );

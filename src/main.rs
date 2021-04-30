@@ -1,9 +1,6 @@
 use log::LevelFilter;
 use serialport::{available_ports, SerialPort};
 use std::convert::TryInto;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
 use std::time::Duration;
 use std::{error::Error, fs};
 
@@ -202,7 +199,7 @@ impl BootloaderConnection {
         // potentially doubling the size, so the chunk size has to be smaller than the MTU.
         let max_chunk_size = usize::from(self.mtu / 2 - 1);
 
-        for chunk in image.chunks(max_size.try_into().unwrap()){
+        for chunk in image.chunks(max_size.try_into().unwrap()) {
             let curr_chunk_sz: u32 = chunk.len().try_into().unwrap();
             self.create_data_object(curr_chunk_sz)?;
             log::debug!("Streaming Data: len: {}", curr_chunk_sz);
@@ -275,7 +272,10 @@ impl BootloaderConnection {
         // potentially doubling the size, so the chunk size has to be smaller than the MTU.
         let max_chunk_size = usize::from(self.mtu / 2 - 1);
 
-        assert!(data.len() <= max_chunk_size, "trying to write object that's larger than the MTU");
+        assert!(
+            data.len() <= max_chunk_size,
+            "trying to write object that's larger than the MTU"
+        );
 
         // TODO: this also needs to take into account the receipt response. In our case we turn
         // it off, so there's nothing to do here.

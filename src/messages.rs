@@ -54,10 +54,13 @@ primitive_enum! {
 primitive_enum! {
     #[derive(Debug)]
     pub enum ExtError(u8) {
+        /// No extended error code set. This should never appear.
         NoError = 0x00,
+        /// Invalid extended error code. This should never appear.
         InvalidErrorCode = 0x01,
         WrongCommandFormat = 0x02,
         UnknownCommand = 0x03,
+        /// Initialization command invalid.
         InitCommandInvalid = 0x04,
         FwVersionFailure = 0x05,
         HwVersionFailure = 0x06,
@@ -80,12 +83,39 @@ pub struct DfuError {
 
 impl fmt::Display for DfuError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO add error code names + descriptions
-        write!(f, "DFU error code: {:?}", self.code)?;
-        if self.ext_error.is_some() {
-            write!(f, "| extended error code: {:?}", self.ext_error)?;
-        }
-        Ok(())
+        let s = match self.ext_error {
+            Some(ExtError::NoError) => "no extended error set",
+            Some(ExtError::InvalidErrorCode) => "invalid extended error code",
+            Some(ExtError::WrongCommandFormat) => "incorrect command format",
+            Some(ExtError::UnknownCommand) => "unknown command",
+            Some(ExtError::InitCommandInvalid) => "initialization command invalid",
+            Some(ExtError::FwVersionFailure) => {
+                "invalid firmware version (possible downgrade attempted)"
+            }
+            Some(ExtError::HwVersionFailure) => "hardware version mismatch",
+            Some(ExtError::SdVersionFailure) => "firmware requires unavailable SoftDevice version",
+            Some(ExtError::SignatureMissing) => "missing image signature",
+            Some(ExtError::WrongHashType) => "unsupported hash type used in initialization command",
+            Some(ExtError::HashFailed) => "failed to compute firmware hash",
+            Some(ExtError::WrongSignatureType) => "unsupported signature type",
+            Some(ExtError::VerificationFailed) => "hash verification failed",
+            Some(ExtError::InsufficientSpace) => "insufficient space for firmware",
+            None => match self.code {
+                ResultCode::Invalid => "invalid request opcode",
+                ResultCode::Success => "success",
+                ResultCode::OpCodeNotSupported => "opcode not supported",
+                ResultCode::InvalidParameter => "missing or invalid request parameter",
+                ResultCode::InsufficientResources => "not enough memory to create object",
+                ResultCode::InvalidObject => "invalid data object",
+                ResultCode::UnsupportedType => "invalid object type for create object request",
+                ResultCode::OperationNotPermitted => "operation not permitted in the current state",
+                ResultCode::OperationFailed => "operation failed",
+                ResultCode::ExtError => {
+                    panic!("`EXT_ERROR` result code without extended error byte")
+                }
+            },
+        };
+        f.write_str(s)
     }
 }
 

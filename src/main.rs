@@ -1,5 +1,9 @@
 use log::LevelFilter;
 use serialport::{available_ports, SerialPort};
+use std::convert::TryInto;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::time::Duration;
 use std::{error::Error, fs};
 
@@ -68,19 +72,25 @@ fn run() -> Result<()> {
     conn.set_receipt_notification(0)?;
 
     let obj_select = conn.select_object_command();
-    println!("select object response: {:?}", obj_select);
+    log::debug!("select object response: {:?}", obj_select);
 
     let version = conn.fetch_protocol_version()?;
-    println!("protocol version: {}", version);
+    log::debug!("protocol version: {}", version);
 
     let hw_version = conn.fetch_hardware_version()?;
-    println!("hardware version: {:?}", hw_version);
+    log::debug!("hardware version: {:?}", hw_version);
 
     let image = image.unwrap_or_else(|| vec![1, 2, 3]);
 
+    //let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
     let init_packet = init_packet::build_init_packet(&image);
     conn.send_init_packet(&init_packet)?;
-    conn.create_data_object(image.len() as u32)?;
+
+    // let test_image = Path::new("loopback.bin");
+    // let mut bin_file = File::open(test_image).expect("firmware file not found");
+    // let mut image = Vec::new();
+    // bin_file.read_to_end(&mut image)?;
+    conn.send_firmware(&image)?;
 
     Ok(())
 }
@@ -111,7 +121,7 @@ impl BootloaderConnection {
         }
 
         let mtu = this.fetch_mtu()?;
-        println!("MTU = {} Bytes", mtu);
+        log::debug!("MTU = {} Bytes", mtu);
         this.mtu = mtu;
         Ok(this)
     }
@@ -120,7 +130,7 @@ impl BootloaderConnection {
     fn request<R: Request>(&mut self, req: R) -> Result<()> {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
-        eprintln!("--> {:?}", buf);
+        log::debug!("--> {:?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.buf.clear();
@@ -137,7 +147,7 @@ impl BootloaderConnection {
 
         self.buf.clear();
         slip::decode_frame(&mut self.serial, &mut self.buf)?;
-        eprintln!("<-- {:?}", self.buf);
+        log::debug!("<-- {:?}", self.buf);
 
         messages::parse_response::<R>(&self.buf)
     }
@@ -154,31 +164,59 @@ impl BootloaderConnection {
         self.request_response(HardwareVersionRequest)
     }
 
-    /// This sends the `.dat` file that's zipped into our firmware DFU .zip(?)
+    /// Sends the `.dat` file that's zipped into our firmware DFU .zip(?)
     /// modeled after `pc-nrfutil`s `dfu_transport_serial::send_init_packet()`
     fn send_init_packet(&mut self, data: &[u8]) -> Result<()> {
-        println!("Sending init packet...");
+        log::info!("Sending init packet...");
         let select_response = self.select_object_command()?;
-        println!("Object selected: {:?}", select_response);
+        log::debug!("Object selected: {:?}", select_response);
 
         let data_size = data.len() as u32;
 
-        // e.g. self.__create_command(len(init_packet))
-        println!("Creating Command...");
+        log::debug!("Creating Command...");
         self.create_command_object(data_size)?;
-        println!("Command created");
+        log::debug!("Command created");
 
-        // e.g. self.__stream_data(data=init_packet)
-        println!("Streaming Data: len: {}", data_size);
-        let write_response = self.write_object_data(data)?;
+        log::debug!("Streaming Data: len: {}", data_size);
+        self.write_object_data(data)?;
         // TODO: calculate crc and check against what we received
-        let target_crc = self.get_crc()?;
-        println!(
-            "Write response: {:?} | crc: {:?}",
-            write_response, target_crc
-        );
+        let _target_crc = self.get_crc()?;
 
         self.execute()?;
+
+        Ok(())
+    }
+
+    /// Sends the firmware image at `bin_path`.
+    /// This is done in chunks to avoid exceeding our MTU  and involves periodic CRC checks.
+    fn send_firmware(&mut self, image: &[u8]) -> Result<()> {
+        log::info!("Sending firmware image of size {}...", image.len());
+
+        log::debug!("Selecting Object: type Data");
+        let select_response = self.select_object_data()?;
+        log::debug!("Object selected: {:?}", select_response);
+
+        let max_size = select_response.max_size;
+
+        // On the wire, the write request contains the opcode byte, and is then SLIP-encoded,
+        // potentially doubling the size, so the chunk size has to be smaller than the MTU.
+        let max_chunk_size = usize::from(self.mtu / 2 - 1);
+
+        for chunk in image.chunks(max_size.try_into().unwrap()){
+            let curr_chunk_sz: u32 = chunk.len().try_into().unwrap();
+            self.create_data_object(curr_chunk_sz)?;
+            log::debug!("Streaming Data: len: {}", curr_chunk_sz);
+
+            for slippable_chunk in chunk.chunks(max_chunk_size) {
+                self.write_object_data(slippable_chunk)?;
+            }
+
+            // TODO: calculate crc and check against what we received
+            let target_crc = self.get_crc()?;
+            log::debug!("crc response: {:?}", target_crc);
+
+            self.execute()?;
+        }
 
         Ok(())
     }
@@ -188,6 +226,13 @@ impl BootloaderConnection {
     /// Parameters:   `Object type = Command`
     fn select_object_command(&mut self) -> Result<SelectResponse> {
         self.request_response(SelectRequest(ObjectType::Command))
+    }
+
+    /// Sends a
+    /// Request Type: `Select`
+    /// Parameters:   `Object type = Data`
+    fn select_object_data(&mut self) -> Result<SelectResponse> {
+        self.request_response(SelectRequest(ObjectType::Data))
     }
 
     /// Sends a
@@ -229,13 +274,14 @@ impl BootloaderConnection {
         // On the wire, the write request contains the opcode byte, and is then SLIP-encoded,
         // potentially doubling the size, so the chunk size has to be smaller than the MTU.
         let max_chunk_size = usize::from(self.mtu / 2 - 1);
-        for chunk in data.chunks(max_chunk_size) {
-            // TODO: this also needs to take into account the receipt response. In our case we turn
-            // it off, so there's nothing to do here.
-            self.request(WriteRequest {
-                request_payload: chunk,
-            })?;
-        }
+
+        assert!(data.len() <= max_chunk_size, "trying to write object that's larger than the MTU");
+
+        // TODO: this also needs to take into account the receipt response. In our case we turn
+        // it off, so there's nothing to do here.
+        self.request(WriteRequest {
+            request_payload: data,
+        })?;
 
         Ok(())
     }

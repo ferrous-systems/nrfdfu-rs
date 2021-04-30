@@ -127,7 +127,7 @@ impl BootloaderConnection {
     fn request<R: Request>(&mut self, req: R) -> Result<()> {
         let mut buf = vec![R::OPCODE as u8];
         req.write_payload(&mut buf)?;
-        log::debug!("--> {:?}", buf);
+        log::trace!("--> {:?}", buf);
 
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.buf.clear();
@@ -144,7 +144,7 @@ impl BootloaderConnection {
 
         self.buf.clear();
         slip::decode_frame(&mut self.serial, &mut self.buf)?;
-        log::debug!("<-- {:?}", self.buf);
+        log::trace!("<-- {:?}", self.buf);
 
         messages::parse_response::<R>(&self.buf)
     }

@@ -175,7 +175,7 @@ impl BootloaderConnection {
         log::debug!("Command created");
 
         log::debug!("Streaming Data: len: {}", data_size);
-        self.write_object_data(data)?;
+        self.stream_object_data(data)?;
         // TODO: calculate crc and check against what we received
         let _target_crc = self.get_crc()?;
 
@@ -195,18 +195,12 @@ impl BootloaderConnection {
 
         let max_size = select_response.max_size;
 
-        // On the wire, the write request contains the opcode byte, and is then SLIP-encoded,
-        // potentially doubling the size, so the chunk size has to be smaller than the MTU.
-        let max_chunk_size = usize::from(self.mtu / 2 - 1);
-
         for chunk in image.chunks(max_size.try_into().unwrap()) {
             let curr_chunk_sz: u32 = chunk.len().try_into().unwrap();
             self.create_data_object(curr_chunk_sz)?;
             log::debug!("Streaming Data: len: {}", curr_chunk_sz);
 
-            for slippable_chunk in chunk.chunks(max_chunk_size) {
-                self.write_object_data(slippable_chunk)?;
-            }
+            self.stream_object_data(chunk)?;
 
             // TODO: calculate crc and check against what we received
             let target_crc = self.get_crc()?;
@@ -267,21 +261,19 @@ impl BootloaderConnection {
         Ok(self.request_response(GetMtuRequest)?.0)
     }
 
-    fn write_object_data(&mut self, data: &[u8]) -> Result<()> {
+    fn stream_object_data(&mut self, data: &[u8]) -> Result<()> {
         // On the wire, the write request contains the opcode byte, and is then SLIP-encoded,
-        // potentially doubling the size, so the chunk size has to be smaller than the MTU.
-        let max_chunk_size = usize::from(self.mtu / 2 - 1);
+        // potentially doubling the size, and adding a frame terminator, so the chunk size has
+        // to be smaller than the MTU.
+        let max_chunk_size = usize::from((self.mtu - 1) / 2 - 1);
 
-        assert!(
-            data.len() <= max_chunk_size,
-            "trying to write object that's larger than the MTU"
-        );
-
-        // TODO: this also needs to take into account the receipt response. In our case we turn
-        // it off, so there's nothing to do here.
-        self.request(WriteRequest {
-            request_payload: data,
-        })?;
+        for chunk in data.chunks(max_chunk_size) {
+            // TODO: this also needs to take into account the receipt response. In our case we turn
+            // it off, so there's nothing to do here.
+            self.request(WriteRequest {
+                request_payload: chunk,
+            })?;
+        }
 
         Ok(())
     }

@@ -158,9 +158,12 @@ impl rohs::Message for Hash<'_> {
 struct InitCommand<'a> {
     // FIXME: expected structure is unclear here, all fields are optional in the upstream spec.
     // We just support the bare minimum.
+    fw_version: u32,
     /// Marked as optional, but omitting it results in `InitCommandInvalid`.
     hw_version: u32,
     fw_type: FwType,
+    sd_size: u32,
+    bl_size: u32,
     /// Size of the flashed app image (total size of all data objects that follow).
     app_size: u32,
     /// Marked as optional in the proto file, but seems to be required.
@@ -170,8 +173,11 @@ struct InitCommand<'a> {
 
 impl rohs::Message for InitCommand<'_> {
     fn write(&self, writer: &mut rohs::MessageWriter) {
+        writer.write_field("fw_version", 1, &self.fw_version);
         writer.write_field("hw_version", 2, &self.hw_version);
         writer.write_field("type", 4, &self.fw_type);
+        writer.write_field("sd_size", 5, &self.sd_size);
+        writer.write_field("bl_size", 6, &self.bl_size);
         writer.write_field("app_size", 7, &self.app_size);
         writer.write_field("hash", 8, &self.hash);
         writer.write_opt_field("is_debug", 9, &self.is_debug);
@@ -210,12 +216,15 @@ impl rohs::Message for Packet<'_> {
 }
 
 pub fn build_init_packet(image: &[u8]) -> Vec<u8> {
-    let hash = {
+    let mut hash = {
         let mut hasher = Sha256::new();
         hasher.update(image);
         hasher.finalize()
     };
-    let hash = &*hash;
+    let hash = &mut *hash;
+    // For some reason, Nordic insists on transmitting (and displaying) the hash in little-endian
+    // byte order, unlike the entire rest of the industry.
+    hash.reverse();
 
     log::debug!(
         "image size: {} Bytes ({} KiB)",
@@ -231,16 +240,19 @@ pub fn build_init_packet(image: &[u8]) -> Vec<u8> {
     );
 
     let packet = Packet::Command(Command::InitCommand(InitCommand {
+        fw_version: 0,
         // 52 is the default, the docs do not recommend using it, but it's unclear how to
         // accomplish that.
         hw_version: 52,
         fw_type: FwType::Application,
+        sd_size: 0,
+        bl_size: 0,
         app_size: image.len() as _,
         hash: Hash {
             hash_type: HashType::Sha256,
             hash,
         },
-        is_debug: Some(true),
+        is_debug: Some(false),
     }));
 
     rohs::encode_message(&packet)
@@ -268,8 +280,11 @@ mod tests {
         test_message(
             "test",
             Packet::Command(Command::InitCommand(InitCommand {
+                fw_version: 0,
                 hw_version: 52,
                 fw_type: FwType::Application,
+                sd_size: 0,
+                bl_size: 0,
                 app_size: 0x55,
                 hash: Hash {
                     hash_type: HashType::Sha256,
@@ -282,7 +297,7 @@ mod tests {
                 is_debug: Some(true),
             })),
             expect![[
-                r#"[a, 30, 8, 1, 12, 2c, 20, 0, 38, 55, 42, 24, 8, 3, 12, 20, ae, 4b, 32, 80, e5, 6e, 2f, af, 83, f4, 14, a6, e3, da, be, 9d, 5f, be, 18, 97, 65, 44, c0, 5f, ed, 12, 1a, cc, b8, 5b, 53, fc, 48, 1]"#
+                r#"[a, 38, 8, 1, 12, 34, 8, 0, 10, 34, 20, 0, 28, 0, 30, 0, 38, 55, 42, 24, 8, 3, 12, 20, ae, 4b, 32, 80, e5, 6e, 2f, af, 83, f4, 14, a6, e3, da, be, 9d, 5f, be, 18, 97, 65, 44, c0, 5f, ed, 12, 1a, cc, b8, 5b, 53, fc, 48, 1]"#
             ]],
         );
     }

@@ -77,7 +77,13 @@ fn run() -> Result<()> {
     let hw_version = conn.fetch_hardware_version()?;
     log::debug!("hardware version: {:?}", hw_version);
 
-    let image = image.unwrap_or_else(|| vec![1, 2, 3]);
+    let mut image = image.unwrap_or_else(|| vec![1, 2, 3]);
+
+    // The firmware image must be padded with 0xFF to be a multiple of 4 Bytes. To our knowledge,
+    // this is undocumented.
+    while image.len() % 4 != 0 {
+        image.push(0xff);
+    }
 
     //let init_packet = std::fs::read("loopback.dat").expect("couldn't read 'loopback.dat'");
     let init_packet = init_packet::build_init_packet(&image);

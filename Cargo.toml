@@ -7,7 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serialport = "4.0.0"
 byteorder = "1.4.3"
 leb128 = "0.2.4"
 sha2 = "0.9.3"
@@ -22,6 +21,12 @@ features = ["termcolor", "atty"]
 version = "0.24.0"
 default-features = false
 features = ["elf", "read_core", "std"]
+
+[dependencies.serialport]
+# Note: we are using a fork due compatibility problems.
+# See https://github.com/ferrous-systems/embedded-trainings-2020/issues/148 for more details.
+git = "https://github.com/ferrous-systems/serialport-rs-hotfix.git"
+branch = "fix-usb-deprecation"
 
 [dev-dependencies]
 expect-test = "1"

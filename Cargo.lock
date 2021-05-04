@@ -276,9 +276,8 @@ checksum = "24d5f089152e60f62d28b835fbff2cd2e8dc0baf1ac13343bef92ab7eed84548"
 
 [[package]]
 name = "serialport"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22f37409d980045734250d679750bdf11bd875fec5bb5417dd21bb75d04d31a1"
+version = "4.0.2-alpha.0"
+source = "git+https://github.com/ferrous-systems/serialport-rs-hotfix.git?branch=fix-usb-deprecation#7816e2823c3e56a0552b0d4fb2b6275e27430316"
 dependencies = [
  "CoreFoundation-sys",
  "IOKit-sys",

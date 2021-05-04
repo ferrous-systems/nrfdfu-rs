@@ -71,6 +71,11 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     }
 
     chunks.sort_by_key(|chunk| chunk.flash_addr);
+    for ch in chunks.windows(2) {
+        if ch[1].flash_addr < ch[0].flash_addr + ch[0].data.len() as u32 {
+            return Err(format!("overlapping chunks at {:#x}", ch[1].flash_addr).into());
+        }
+    }
 
     if chunks.is_empty() {
         return Err(format!("no loadable program segments found").into());
@@ -92,19 +97,20 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
             .into());
         }
 
-        // Fill gaps between chunks with erased 0xFF bytes.
+        // Fill gaps between chunks with 0 bytes.
         let gap = chunk.flash_addr - addr;
-        image.extend(iter::once(0xFF).take(gap as usize));
+        image.extend(iter::repeat(0).take(gap as usize));
         if gap > 0 {
-            log::debug!("0x{:08x}-0x{:08x} (gap)", addr, chunk.flash_addr - 1);
+            log::debug!("0x{:08x}-0x{:08x} (gap)", addr, addr + gap - 1);
         }
+        addr += gap;
 
         image.extend(chunk.data);
 
         log::debug!(
             "0x{:08x}-0x{:08x}",
             chunk.flash_addr,
-            chunk.flash_addr as usize + chunk.data.len()
+            chunk.flash_addr as usize + chunk.data.len() - 1
         );
         addr += chunk.data.len() as u32;
     }

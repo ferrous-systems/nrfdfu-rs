@@ -123,6 +123,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrous-serialport"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55f15bacc9a6c2eafcdcdfc52fb321140c00b156b180318d16b41e4f55ad5ab8"
+dependencies = [
+ "CoreFoundation-sys",
+ "IOKit-sys",
+ "bitflags",
+ "cfg-if 0.1.10",
+ "libudev",
+ "mach 0.2.3",
+ "nix",
+ "regex",
+ "winapi",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -226,10 +243,10 @@ dependencies = [
  "byteorder",
  "env_logger",
  "expect-test",
+ "ferrous-serialport",
  "leb128",
  "log",
  "object",
- "serialport",
  "sha2",
 ]
 
@@ -273,22 +290,6 @@ name = "regex-syntax"
 version = "0.6.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24d5f089152e60f62d28b835fbff2cd2e8dc0baf1ac13343bef92ab7eed84548"
-
-[[package]]
-name = "serialport"
-version = "4.0.2-alpha.0"
-source = "git+https://github.com/ferrous-systems/serialport-rs-hotfix.git?branch=fix-usb-deprecation#7816e2823c3e56a0552b0d4fb2b6275e27430316"
-dependencies = [
- "CoreFoundation-sys",
- "IOKit-sys",
- "bitflags",
- "cfg-if 0.1.10",
- "libudev",
- "mach 0.2.3",
- "nix",
- "regex",
- "winapi",
-]
 
 [[package]]
 name = "sha2"

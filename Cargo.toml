@@ -25,8 +25,8 @@ features = ["elf", "read_core", "std"]
 [dependencies.serialport]
 # Note: we are using a fork due compatibility problems.
 # See https://github.com/ferrous-systems/embedded-trainings-2020/issues/148 for more details.
-git = "https://github.com/ferrous-systems/serialport-rs-hotfix.git"
-branch = "fix-usb-deprecation"
+package = "ferrous-serialport"
+version = "4.0.2"
 
 [dev-dependencies]
 expect-test = "1"

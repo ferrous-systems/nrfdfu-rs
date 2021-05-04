@@ -3,7 +3,7 @@ use std::iter;
 use object::{
     elf::{FileHeader32, PT_LOAD},
     read::elf::{FileHeader, ProgramHeader, SectionHeader},
-    Bytes, Endianness, FileKind,
+    Endianness, FileKind,
 };
 
 use crate::Result;
@@ -28,17 +28,13 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     // Collect the to-be-flashed chunks.
     let mut chunks = Vec::new();
 
-    let header = FileHeader32::<Endianness>::parse(Bytes(elf))?;
+    let header = FileHeader32::<Endianness>::parse(elf)?;
     let endian = header.endian()?;
-    let sections = header.section_headers(endian, Bytes(elf))?;
-    let strings = header.section_strings(endian, Bytes(elf), sections)?;
-    for (i, program) in header
-        .program_headers(endian, Bytes(elf))?
-        .iter()
-        .enumerate()
-    {
+    let sections = header.section_headers(endian, elf)?;
+    let strings = header.section_strings(endian, elf, sections)?;
+    for (i, program) in header.program_headers(endian, elf)?.iter().enumerate() {
         let data = program
-            .data(endian, Bytes(elf))
+            .data(endian, elf)
             .map_err(|()| format!("failed to load segment data (corrupt ELF?)"))?;
         let p_type = program.p_type(endian);
 
@@ -64,7 +60,7 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
             if contains_section {
                 chunks.push(Chunk {
                     flash_addr: program.p_paddr(endian),
-                    data: data.0,
+                    data,
                 });
             }
         }

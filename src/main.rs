@@ -1,8 +1,9 @@
+use crc32fast::Hasher;
 use log::LevelFilter;
 use serialport::{available_ports, SerialPort};
 use std::convert::TryInto;
 use std::time::Duration;
-use std::{error::Error, fs};
+use std::{error::Error, fs, fmt};
 
 #[macro_use]
 mod macros;
@@ -97,6 +98,14 @@ fn run() -> Result<()> {
 
     Ok(())
 }
+#[derive(Debug)]
+struct CrcError;
+impl Error for CrcError {}
+impl fmt::Display for CrcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CrcError")
+    }
+}
 
 struct BootloaderConnection {
     serial: Box<dyn SerialPort>,
@@ -176,14 +185,15 @@ impl BootloaderConnection {
 
         let data_size = data.len() as u32;
 
-        log::debug!("Creating Command...");
+        log::debug!("Creating Command... {}", data_size);
         self.create_command_object(data_size)?;
         log::debug!("Command created");
 
         log::debug!("Streaming Data: len: {}", data_size);
         self.stream_object_data(data)?;
-        // TODO: calculate crc and check against what we received
-        let _target_crc = self.get_crc()?;
+
+        let received_crc = self.get_crc()?.crc;
+        self.check_crc(data, received_crc)?;
 
         self.execute()?;
 
@@ -208,14 +218,32 @@ impl BootloaderConnection {
 
             self.stream_object_data(chunk)?;
 
-            // TODO: calculate crc and check against what we received
-            let target_crc = self.get_crc()?;
-            log::debug!("crc response: {:?}", target_crc);
+            let received_crc = self.get_crc()?;
+            log::debug!("crc response: {:?}", received_crc);
+            self.check_crc(chunk, received_crc.crc)?;
 
             self.execute()?;
         }
 
         Ok(())
+    }
+
+    fn check_crc(&self, data: &[u8], received_crc: u32) -> Result<()> {
+        let mut hasher = Hasher::new();
+        hasher.update(data);
+        let expected_crc = hasher.finalize();
+
+        match expected_crc == received_crc {
+            true => {
+                log::debug!("CRC check passed.");
+                Ok(())
+            }
+            false => {
+                log::debug!("CRC check failed: expected {} - received {}",
+                            expected_crc, received_crc);
+                Err(Box::new(CrcError))
+            }
+        }
     }
 
     /// Sends a

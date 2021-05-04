@@ -1,7 +1,6 @@
 # nRF DFU Flashing Tool
 
 [![crates.io](https://img.shields.io/crates/v/nrfdfu.svg)](https://crates.io/crates/nrfdfu)
-[![docs.rs](https://docs.rs/nrfdfu/badge.svg)](https://docs.rs/nrfdfu/)
 
 `nrfdfu-rs` is an implementation of the protocol used by the bootloader on the nRF family of microcontrollers.
 It can be used to flash an ELF firmware file onto devices such as the [nRF52840 Dongle].

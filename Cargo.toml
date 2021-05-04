@@ -5,6 +5,8 @@ authors = ["Lotte Steenbrink <lotte.steenbrink@ferrous-systems.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+description = "A flashing tool for the nRF bootloader"
+repository = "https://github.com/ferrous-systems/nrfdfu-rs"
 
 [dependencies]
 byteorder = "1.4.3"

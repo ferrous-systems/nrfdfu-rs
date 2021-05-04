@@ -216,6 +216,7 @@ impl BootloaderConnection {
             self.execute()?;
         }
 
+        log::info!("Done.");
         Ok(())
     }
 

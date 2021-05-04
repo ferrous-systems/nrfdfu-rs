@@ -32,7 +32,7 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    // We show info and higer levels by default, but allow overriding this via `RUST_LOG`.
+    // We show info and higher levels by default, but allow overriding this via `RUST_LOG`.
     env_logger::builder()
         .filter_level(LevelFilter::Info)
         .parse_default_env()

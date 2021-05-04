@@ -264,10 +264,13 @@ impl Request for CreateObjectRequest {
 
     fn write_payload<W: Write>(&self, mut writer: W) -> io::Result<()> {
         // note:
+        // while the docs suggest that `obj_type` should be a `u32`:
         // https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v15.0.0%2Flib_dfu_transport.html
-        // suggests that `object_type` should be a uint_32t, but message sent by `pc-nrfutil`
-        // seems to hold this as a `u8`?
-        // TODO dive deeper into `pc-nrfutil` & firmware and verify
+        // the firmware code *for handling packets received via serial* only reads the first byte as
+        // `obj_type`:
+        // https://github.com/tmael/nRF5_SDK/blob/master/components/libraries/bootloader/serial_dfu/nrf_dfu_serial.c#L227
+        // Which is why we're writing a `u8` here. The same applies to ble-received packets.
+        // CAUTION: ANT+ packet handling expects a `u16`, so this code won't work in that case!
         writer.write_u8(self.obj_type as u8)?;
         writer.write_u32::<LE>(self.size)?;
         Ok(())

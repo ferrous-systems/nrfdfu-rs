@@ -2,7 +2,7 @@ use std::iter;
 
 use object::{
     elf::{FileHeader32, PT_LOAD},
-    read::elf::{FileHeader, ProgramHeader},
+    read::elf::{FileHeader, ProgramHeader, SectionHeader},
     Bytes, Endianness, FileKind,
 };
 
@@ -30,17 +30,43 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
 
     let header = FileHeader32::<Endianness>::parse(Bytes(elf))?;
     let endian = header.endian()?;
-    for program in header.program_headers(endian, Bytes(elf))? {
+    let sections = header.section_headers(endian, Bytes(elf))?;
+    let strings = header.section_strings(endian, Bytes(elf), sections)?;
+    for (i, program) in header
+        .program_headers(endian, Bytes(elf))?
+        .iter()
+        .enumerate()
+    {
         let data = program
             .data(endian, Bytes(elf))
             .map_err(|()| format!("failed to load segment data (corrupt ELF?)"))?;
         let p_type = program.p_type(endian);
 
         if !data.is_empty() && p_type == PT_LOAD {
-            chunks.push(Chunk {
-                flash_addr: program.p_paddr(endian),
-                data: data.0,
+            let (prog_offset, prog_size) = program.file_range(endian);
+
+            // Note: `skip(1)` to skip the SHN_UNDEF at index 0
+            let contains_section = sections.iter().skip(1).enumerate().any(|(sidx, section)| {
+                let (sec_offset, sec_size) = match section.file_range(endian) {
+                    Some(range) => range,
+                    None => return false,
+                };
+
+                let contained =
+                    sec_offset >= prog_offset && sec_offset + sec_size <= prog_offset + prog_size;
+                if contained {
+                    let name = String::from_utf8_lossy(section.name(endian, strings).unwrap());
+                    log::debug!("phdr #{} contains section #{} {}", i, sidx, name);
+                }
+                contained
             });
+
+            if contains_section {
+                chunks.push(Chunk {
+                    flash_addr: program.p_paddr(endian),
+                    data: data.0,
+                });
+            }
         }
     }
 
@@ -53,6 +79,10 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     let mut image = Vec::new();
     let mut addr = chunks[0].flash_addr;
     log::debug!("firmware starts at {:#x}", addr);
+    if addr != 0x1000 {
+        return Err(format!("firmware start at address {:#x}, expected 0x1000", addr).into());
+    }
+
     for chunk in &chunks {
         if chunk.flash_addr < addr {
             return Err(format!(

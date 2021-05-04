@@ -1,7 +1,10 @@
 [package]
 name = "nrfdfu"
 version = "0.1.0"
-authors = ["Lotte Steenbrink <lotte.steenbrink@ferrous-systems.com>"]
+authors = [
+    "Lotte Steenbrink <lotte.steenbrink@ferrous-systems.com>",
+    "Jonas Schievink <jonas.schievink@ferrous-systems.com>",
+]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 readme = "README.md"

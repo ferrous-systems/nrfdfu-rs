@@ -41,7 +41,8 @@ fn run() -> Result<()> {
     let elf_path = std::env::args_os().skip(1).next();
     let image = match elf_path {
         Some(path) => {
-            let elf = fs::read(&path)?;
+            let elf = fs::read(&path)
+                .map_err(|e| format!("couldn't read `{}`: {}", path.to_string_lossy(), e))?;
             Some(elf::read_elf_image(&elf)?)
         }
         None => None,

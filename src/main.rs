@@ -54,12 +54,23 @@ fn run() -> Result<()> {
         })
         .collect();
 
-    let port = match matching_ports.len() {
-        0 => return Err(format!("no matching USB serial device found").into()),
-        1 => serialport::new(&matching_ports[0].port_name, 115200)
-            .timeout(Duration::from_millis(1000))
-            .open()?,
-        _ => return Err(format!("multiple matching USB serial devices found").into()),
+    let port = loop {
+        match matching_ports.len() {
+            0 => return Err(format!("no matching USB serial device found").into()),
+            1 => {
+                match serialport::new(&matching_ports[0].port_name, 115200)
+                    .timeout(Duration::from_millis(5000))
+                    .open() {
+                    Ok(sp) => break sp,
+                    Err(e) => {
+                        println!("Serial error: {}", e);
+                        println!("  Retrying (press control-c to abort)...");
+                        continue;
+                    }
+                }
+            },
+            _ => return Err(format!("multiple matching USB serial devices found").into()),
+        }
     };
 
     let mut conn = BootloaderConnection::new(port)?;

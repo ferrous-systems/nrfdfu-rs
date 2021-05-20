@@ -219,17 +219,14 @@ impl BootloaderConnection {
         digest.write(data);
         let expected_crc = digest.sum32() & 0xffffffff;
 
-        match expected_crc == received_crc {
-            true => {
-                log::debug!("crc passed.");
-                Ok(expected_crc)
-            }
-            false => {
-                let err_msg = format!("crc failed: expected {} - received {}",
-                                             expected_crc, received_crc);
-                log::debug!("{}", err_msg);
-                Err(err_msg.into())
-            }
+        if expected_crc == received_crc {
+            log::debug!("crc passed.");
+            Ok(expected_crc)
+        } else {
+            let err_msg = format!("crc failed: expected {} - received {}",
+                                            expected_crc, received_crc);
+            log::debug!("{}", err_msg);
+            Err(err_msg.into())
         }
     }
 

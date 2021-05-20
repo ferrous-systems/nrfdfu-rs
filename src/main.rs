@@ -1,3 +1,4 @@
+use crc::{crc32, Hasher32};
 use log::LevelFilter;
 use serialport::{available_ports, SerialPort};
 use std::convert::TryInto;
@@ -173,8 +174,9 @@ impl BootloaderConnection {
 
         log::debug!("Streaming Data: len: {}", data_size);
         self.stream_object_data(data)?;
-        // TODO: calculate crc and check against what we received
-        let _target_crc = self.get_crc()?;
+
+        let received_crc = self.get_crc()?.crc;
+        self.check_crc(data, received_crc, 0)?;
 
         self.execute()?;
 
@@ -191,6 +193,7 @@ impl BootloaderConnection {
         log::debug!("Object selected: {:?}", select_response);
 
         let max_size = select_response.max_size;
+        let mut prev_chunk_crc: u32 = 0;
 
         for chunk in image.chunks(max_size.try_into().unwrap()) {
             let curr_chunk_sz: u32 = chunk.len().try_into().unwrap();
@@ -199,15 +202,32 @@ impl BootloaderConnection {
 
             self.stream_object_data(chunk)?;
 
-            // TODO: calculate crc and check against what we received
-            let target_crc = self.get_crc()?;
-            log::debug!("crc response: {:?}", target_crc);
+            let received_crc = self.get_crc()?;
+            log::debug!("crc response: {:?}", received_crc);
+            prev_chunk_crc = self.check_crc(chunk, received_crc.crc, prev_chunk_crc)?;
 
             self.execute()?;
         }
 
         log::info!("Done.");
         Ok(())
+    }
+
+    fn check_crc(&self, data: &[u8], received_crc: u32, initial: u32) -> Result<u32> {
+
+        let mut digest = crc32::Digest::new_with_initial(crc32::IEEE, initial);
+        digest.write(data);
+        let expected_crc = digest.sum32() & 0xffffffff;
+
+        if expected_crc == received_crc {
+            log::debug!("crc passed.");
+            Ok(expected_crc)
+        } else {
+            let err_msg = format!("crc failed: expected {} - received {}",
+                                            expected_crc, received_crc);
+            log::debug!("{}", err_msg);
+            Err(err_msg.into())
+        }
     }
 
     /// Sends a

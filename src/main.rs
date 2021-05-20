@@ -56,7 +56,8 @@ fn run() -> Result<()> {
         .collect();
 
     let port = match matching_ports.len() {
-        0 => return Err(format!("no matching USB serial device found").into()),
+        0 => return Err(format!("no matching USB serial device found.\n       Remember to put the \
+                                 device in bootloader mode by pressing the reset button!").into()),
         1 => serialport::new(&matching_ports[0].port_name, 115200)
             .timeout(Duration::from_millis(1000))
             .open()?,

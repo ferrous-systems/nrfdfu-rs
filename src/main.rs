@@ -56,11 +56,20 @@ fn run() -> Result<()> {
         .collect();
 
     let port = match matching_ports.len() {
-        0 => return Err(format!("no matching USB serial device found.\n       Remember to put the \
-                                 device in bootloader mode by pressing the reset button!").into()),
-        1 => serialport::new(&matching_ports[0].port_name, 115200)
-            .timeout(Duration::from_millis(1000))
-            .open()?,
+        0 => {
+            return Err(format!(
+                "no matching USB serial device found.\n       Remember to put the \
+                                 device in bootloader mode by pressing the reset button!"
+            )
+            .into())
+        }
+        1 => {
+            let port = &matching_ports[0].port_name;
+            log::debug!("opening {} (type {:?})", port, matching_ports[0].port_type);
+            serialport::new(port, 115200)
+                .timeout(Duration::from_millis(1000))
+                .open()?
+        }
         _ => return Err(format!("multiple matching USB serial devices found").into()),
     };
 
@@ -131,7 +140,10 @@ impl BootloaderConnection {
         // Go through an intermediate buffer to avoid writing every byte individually.
         self.buf.clear();
         slip::encode_frame(&buf, &mut self.buf)?;
-        self.serial.write_all(&self.buf)?;
+        self.serial
+            .write_all(&self.buf)
+            .map_err(|e| format!("error while writing to serial port: {}", e))?;
+        self.serial.flush()?;
 
         Ok(())
     }
@@ -142,7 +154,8 @@ impl BootloaderConnection {
         self.request(req)?;
 
         self.buf.clear();
-        slip::decode_frame(&mut self.serial, &mut self.buf)?;
+        slip::decode_frame(&mut self.serial, &mut self.buf)
+            .map_err(|e| format!("error while reading from serial port: {}", e))?;
         log::trace!("<-- {:?}", self.buf);
 
         messages::parse_response::<R>(&self.buf)
@@ -215,7 +228,6 @@ impl BootloaderConnection {
     }
 
     fn check_crc(&self, data: &[u8], received_crc: u32, initial: u32) -> Result<u32> {
-
         let mut digest = crc32::Digest::new_with_initial(crc32::IEEE, initial);
         digest.write(data);
         let expected_crc = digest.sum32() & 0xffffffff;
@@ -224,8 +236,10 @@ impl BootloaderConnection {
             log::debug!("crc passed.");
             Ok(expected_crc)
         } else {
-            let err_msg = format!("crc failed: expected {} - received {}",
-                                            expected_crc, received_crc);
+            let err_msg = format!(
+                "crc failed: expected {} - received {}",
+                expected_crc, received_crc
+            );
             log::debug!("{}", err_msg);
             Err(err_msg.into())
         }

@@ -55,7 +55,7 @@ fn run() -> Result<()> {
         })
         .collect();
 
-    let port = match matching_ports.len() {
+    let mut port = match matching_ports.len() {
         0 => {
             return Err(format!(
                 "no matching USB serial device found.\n       Remember to put the \
@@ -72,6 +72,10 @@ fn run() -> Result<()> {
         }
         _ => return Err(format!("multiple matching USB serial devices found").into()),
     };
+
+    // On Windows, this is required, otherwise communication fails with timeouts
+    // (or just hangs forever).
+    port.write_data_terminal_ready(true)?;
 
     let mut conn = BootloaderConnection::new(port)?;
 

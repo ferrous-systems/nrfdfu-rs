@@ -24,7 +24,7 @@ default-features = false
 features = ["termcolor", "atty"]
 
 [dependencies.object]
-version = "0.24.0"
+version = "0.25.3"
 default-features = false
 features = ["elf", "read_core", "std"]
 

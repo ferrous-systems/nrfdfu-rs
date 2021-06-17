@@ -1,6 +1,6 @@
 [package]
 name = "nrfdfu"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     "Lotte Steenbrink <lotte.steenbrink@ferrous-systems.com>",
     "Jonas Schievink <jonas.schievink@ferrous-systems.com>",

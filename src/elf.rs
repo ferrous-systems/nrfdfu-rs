@@ -81,7 +81,7 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     let mut addr = chunks[0].flash_addr;
     log::debug!("firmware starts at {:#x}", addr);
     if addr != 0x1000 {
-        return Err(format!("firmware start at address {:#x}, expected 0x1000", addr).into());
+        return Err(format!("firmware starts at address {:#x}, expected 0x1000", addr).into());
     }
 
     for chunk in &chunks {

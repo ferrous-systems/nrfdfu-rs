@@ -1,7 +1,7 @@
-use crc::{crc32, Hasher32};
 use log::LevelFilter;
 use serialport::{available_ports, SerialPort};
 use std::convert::TryInto;
+use std::hash::Hasher;
 use std::time::Duration;
 use std::{error::Error, fs};
 
@@ -232,9 +232,9 @@ impl BootloaderConnection {
     }
 
     fn check_crc(&self, data: &[u8], received_crc: u32, initial: u32) -> Result<u32> {
-        let mut digest = crc32::Digest::new_with_initial(crc32::IEEE, initial);
+        let mut digest = crc32fast::Hasher::new_with_initial(initial);
         digest.write(data);
-        let expected_crc = digest.sum32() & 0xffffffff;
+        let expected_crc = digest.finalize();
 
         if expected_crc == received_crc {
             log::debug!("crc passed.");

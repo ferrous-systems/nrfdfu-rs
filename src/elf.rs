@@ -74,7 +74,11 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     }
 
     if chunks.is_empty() {
-        return Err(format!("no loadable program segments found").into());
+        return Err(format!(
+            "no loadable program segments found; ensure that the linker is \
+            invoked correctly (passing the linker script)"
+        )
+        .into());
     }
 
     let mut image = Vec::new();

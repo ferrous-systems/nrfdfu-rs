@@ -85,7 +85,9 @@ pub fn read_elf_image(elf: &[u8]) -> Result<Vec<u8>> {
     let mut addr = chunks[0].flash_addr;
     log::debug!("firmware starts at {:#x}", addr);
     if addr < 0x1000 {
-        return Err(format!("firmware starts at address {:#x}, expected at least 0x1000 to safe the bootloader", addr).into());
+        return Err(format!(
+            "firmware starts at address {:#x}, expected an address equal or higher than 0x1000 to \
+             avoid a collision with the bootloader", addr).into());
     }
 
     for chunk in &chunks {
